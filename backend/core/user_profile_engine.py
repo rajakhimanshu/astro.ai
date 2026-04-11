@@ -1,7 +1,7 @@
 """
 core/user_profile_engine.py
 ────────────────────────────────────────────────────────────────────────
-Multi-User Profile Engine for Jyotish AI
+Multi-User Profile Engine for Astro.AI
 
 Computes a complete 12-layer Jyotish profile from birth data using
 kerykeion (Swiss Ephemeris, Sidereal/Lahiri) and stores it per user.
