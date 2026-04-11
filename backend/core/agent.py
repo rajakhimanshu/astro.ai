@@ -1,7 +1,7 @@
 """
 core/agent.py
 ────────────────────────────────────────────────────
-Jyotish AI — Master Orchestrator (Multi-User)
+Astro.AI — Master Orchestrator (Multi-User)
 Combines:
   1. Per-user profile (computed 12-layer chart from user_profile_engine)
   2. Live transit analysis (where planets are TODAY relative to user's chart)
