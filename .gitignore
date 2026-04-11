@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Node
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+
+# IDEs
+.vscode/
+.idea/
+
+# Large files / Data
+*.pdf
+*.db
+*.sqlite3
+backend/cache/
+backend/temp/
+backend/study data/
+backend/raw_pdfs/
+backend/knowledge/
+backend/data/
+
+# OS files
+.DS_Store
+Thumbs.db

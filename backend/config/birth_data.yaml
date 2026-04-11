@@ -1,0 +1,11 @@
+# Your Birth Information
+name: "Demo User"
+gender: "Male"
+year: 1990
+month: 01            # January
+day: 01
+hour: 12             # 12:00 PM
+minute: 00
+city: "New Delhi"
+nation: "IN"
+Timezone: "Asia/Kolkata"
