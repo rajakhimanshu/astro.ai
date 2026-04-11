@@ -1,0 +1,288 @@
+---
+
+---
+
+## Layer 1 — The Foundation: Birth Chart (D1 Rashi Chart)
+
+This is the base of everything. Calculated from birth date, time, and place.
+
+**The 12 Houses (Bhavas) and what each rules:**
+
+House 1 — Self, body, personality, appearance, overall life direction, health in general, the way you present yourself to the world.
+
+House 2 — Wealth, family, speech, food, face, right eye, accumulated assets, what you eat, how you talk, early childhood family.
+
+House 3 — Courage, siblings, communication, short travel, hands, writing, media, neighbors, efforts, boldness.
+
+House 4 — Mother, home, property, vehicles, emotional peace, education foundation, land, chest/heart, inner happiness.
+
+House 5 — Intelligence, creativity, children, romance, past life merit, speculation, mantras, political mind, stomach.
+
+House 6 — Enemies, disease, debts, obstacles, daily routine, service, competition, litigation, maternal uncle, digestive system.
+
+House 7 — Marriage, partnerships, business, public life, spouse, open enemies, foreign travel, lower abdomen.
+
+House 8 — Death, transformation, hidden things, occult, inheritance, chronic illness, surgery, secrets, longevity, sudden events, genitals.
+
+House 9 — Luck, father, religion, guru, higher education, long travel, philosophy, dharma, divine grace, thighs.
+
+House 10 — Career, reputation, status, authority, government, father also, knees, public achievement, what you are known for.
+
+House 11 — Gains, income, elder siblings, social networks, fulfillment of desires, left ear, friends, large organizations.
+
+House 12 — Losses, expenses, foreign lands, sleep, spirituality, moksha, isolation, left eye, bed pleasures, hidden enemies, hospitals.
+
+---
+
+**The 9 Planets (Grahas) and their core significations:**
+
+Sun — Soul, father, authority, government, ego, health, confidence, right eye, bones, leadership, 1 year cycle.
+
+Moon — Mind, mother, emotions, public, water, milk, fluctuation, travel, left eye, lungs, 1 month cycle.
+
+Mars — Energy, brothers, land, property, courage, aggression, surgery, fire, accidents, police/military, blood, muscles.
+
+Mercury — Intelligence, communication, business, skin, nervous system, mathematics, writing, siblings, maternal uncle, adaptability.
+
+Jupiter — Wisdom, children, wealth, religion, guru, expansion, liver, fat, yellow things, law, finance, marriage for women.
+
+Venus — Love, marriage, beauty, luxury, vehicles, arts, semen, kidneys, women, pleasure, entertainment, marriage for men.
+
+Saturn — Karma, delays, discipline, hard work, servants, old people, chronic illness, bones, teeth, hair, legs, slow things, fear.
+
+Rahu — Obsession, illusion, foreign things, technology, unconventional paths, amplifies whatever it touches, worldly desire, head.
+
+Ketu — Detachment, past life, spirituality, moksha, confusion, sudden events, research, tail/lower body, liberation.
+
+---
+
+**Planetary States that change everything:**
+
+Exaltation — Planet at peak power. Sun in Aries, Moon in Taurus, Mars in Capricorn, Mercury in Virgo, Jupiter in Cancer, Venus in Pisces, Saturn in Libra, Rahu in Taurus/Gemini, Ketu in Scorpio/Sagittarius.
+
+Debilitation — Planet at weakest. Opposite sign from exaltation. Severely weakens results.
+
+Own Sign (Swakshetra) — Planet very comfortable and strong. Like being at home.
+
+Moolatrikona — Slightly less powerful than own sign but still very good.
+
+Friendly Sign — Planet functions well, like being at a friend's house.
+
+Enemy Sign — Planet uncomfortable, results suffer.
+
+Combust (Asta) — Planet too close to Sun (within certain degrees), loses power and gets burned.
+
+Retrograde (Vakri) — Planet appears to move backward. Intensifies its energy, internalizes it, gives second chances but also delays.
+
+Vargottama — Planet in same sign in D1 and D9 charts. Extremely powerful placement regardless of other factors.
+
+---
+
+## Layer 2 — Aspects (Drishti)
+
+Planets don't just affect the house they sit in. They throw energy to other houses.
+
+**All planets aspect the 7th house from themselves** — this is the universal aspect.
+
+**Special aspects:**
+Jupiter aspects 5th and 9th houses from itself — blessing and expansion energy thrown forward and backward.
+
+Saturn aspects 3rd and 10th houses from itself — karmic influence, discipline or delay thrown to effort and career houses.
+
+Mars aspects 4th and 8th houses from itself — aggressive energy thrown to home/peace and transformation/hidden areas.
+
+Rahu and Ketu aspect 5th and 9th from themselves in some schools, and also the houses they occupy have a 180 degree axis effect.
+
+**Why aspects matter:** A good planet aspecting a weak house can rescue it. A malefic aspecting a strong house can damage it. An astrologer always checks what is looking at each house, not just what is sitting in it.
+
+---
+
+## Layer 3 — House Lordships (The Most Important Concept)
+
+Every planet owns (rules) one or two houses based on the ascendant. This ownership completely changes how a planet behaves.
+
+For example, if your ascendant is Virgo, Mercury rules House 1 and House 10. Mercury becomes extremely important for your career and identity. If Mercury is strong, your career thrives. If Mercury is weak or afflicted, career suffers.
+
+**The key house classifications:**
+
+Kendra (Angular houses) — 1, 4, 7, 10. Most powerful houses. Planets placed here get maximum strength (Digbala concept). Lords of these houses gain importance.
+
+Trikona (Trine houses) — 1, 5, 9. Most auspicious houses. Lords of these are naturally benefic for your chart. House 1 is both Kendra and Trikona — extra special.
+
+Upachaya (Growth houses) — 3, 6, 10, 11. Malefic planets actually do well here over time. These houses improve with age.
+
+Dusthana (Difficult houses) — 6, 8, 12. Houses of difficulty, hidden things, suffering. Lords of these can cause problems to whichever house they influence.
+
+Maraka (Death-inflicting houses) — 2 and 7. These houses and their lords, when activated during the right time, can threaten health and longevity.
+
+**Yogakaraka** — A planet that rules both a Kendra and a Trikona simultaneously for a specific ascendant. This is the most powerful placement possible. For example, for Cancer ascendant, Mars rules House 5 (Trikona) and House 10 (Kendra) — Mars becomes Yogakaraka and gives excellent results.
+
+---
+
+## Layer 4 — Planetary Combinations (Yogas)
+
+Yogas are specific combinations that produce distinct life outcomes. There are hundreds but here are the most important:
+
+**Wealth Yogas (Dhana Yogas):**
+When lords of houses 2, 5, 9, and 11 connect with each other through conjunction, aspect, or exchange — wealth yoga forms. The stronger the connection and the stronger the planets, the greater the wealth.
+
+**Power Yogas (Raja Yogas):**
+Connection between Kendra lords (1,4,7,10) and Trikona lords (1,5,9). This gives status, authority, success. The 9th lord connecting with 10th lord is one of the strongest Raja Yogas possible.
+
+**Gaja Kesari Yoga:**
+Jupiter in a Kendra from Moon. Gives fame, wisdom, respected status in society.
+
+**Budha Aditya Yoga:**
+Sun and Mercury together. Sharp intelligence, professional skill, communication abilities.
+
+**Chandra Mangala Yoga:**
+Moon and Mars together. Financial drive, emotional intensity, can give wealth through effort.
+
+**Kala Sarpa Yoga:**
+All planets between Rahu and Ketu axis. Intense karma, unusual life path, periods of extreme highs and lows. Very significant pattern.
+
+**Vipreet Raja Yoga:**
+Lords of 6th, 8th, or 12th sitting in each other's houses. Success through unusual means, rising after falls, gaining through others' losses.
+
+**Neecha Bhanga Raja Yoga:**
+A debilitated planet gets cancelled by certain conditions and actually becomes powerful. One of the most fascinating yogas — a weak planet that gets rehabilitated can give extraordinary results.
+
+**Pancha Mahapurusha Yogas:**
+Five specific planets (Mars, Mercury, Jupiter, Venus, Saturn) in their own sign or exaltation in a Kendra. Each gives a specific type of great person — Ruchaka (Mars), Bhadra (Mercury), Hamsa (Jupiter), Malavya (Venus), Sasa (Saturn).
+
+---
+
+## Layer 5 — Nakshatras (27 Lunar Mansions)
+
+The zodiac is divided into 27 Nakshatras of 13°20' each. Each nakshatra has a ruling planet, a deity, a symbol, and a specific quality. The Moon's nakshatra at birth is called Janma Nakshatra and is extremely important.
+
+Every planet's nakshatra matters. The nakshatra lord essentially acts as a sub-ruler and filters the planet's energy.
+
+**The nakshatra's ruling planet tells you who is really in charge:**
+If your Sun is in Rohini nakshatra, Moon rules that nakshatra. So Moon becomes important for how your Sun expresses. If Moon is weak in your chart, even a strong Sun may not fully express.
+
+**This creates what advanced astrologers call the Planet-Sign-Nakshatra triplet** — every planet must be read at all three levels simultaneously for precision.
+
+---
+
+## Layer 6 — Vimshottari Dasha (The Timing System)
+
+Already built in your system. The planetary clock. But let me explain the depth.
+
+**The Mahadasha** is the overall chapter — which planet is running the show for years. The Mahadasha lord's strength, placement, house ownership, and connections in the natal chart determine whether this chapter is good or difficult.
+
+**The Antardasha** is the sub-chapter — a planet within the Mahadasha that flavors the period. The relationship between Mahadasha lord and Antardasha lord matters enormously. If they are natural friends in good houses, excellent results. If they are enemies or one is in the other's dusthana, difficult period.
+
+**The Pratyantardasha** is the sub-sub chapter — very short periods of weeks that tell you exactly when within the Antardasha an event triggers.
+
+**The key rule:** An event happens when the dasha system, transits, and natal promise ALL align simultaneously. If a yoga exists in the natal chart but the right dasha hasn't come, it won't activate. Timing is everything.
+
+---
+
+## Layer 7 — Transits (Gochara)
+
+The actual planets moving through the sky right now, compared to your birth chart.
+
+**Saturn transit** is the most significant. 2.5 years per sign. When Saturn transits your 1st, 4th, 7th, or 8th house from natal Moon — this is called Sade Sati (7.5 year Saturn period) or Kantaka Shani. Periods of intense karmic lessons, hard work, delays. But if Saturn is well-placed natally and your dasha supports it, even Sade Sati can produce great career achievements.
+
+**Jupiter transit** is the most beneficial. 1 year per sign. Jupiter transiting 1st, 4th, 5th, 7th, 9th, 10th, 11th from natal Moon or Ascendant generally brings expansion and opportunity in those life areas.
+
+**Rahu/Ketu transit** — 1.5 years per sign. The eclipse axis. Creates obsession and sudden shifts in whatever houses they transit. Currently one of the most talked about factors.
+
+**The double transit rule** — When BOTH Jupiter and Saturn aspect or transit the same house simultaneously, events of great significance happen in that house's domain. This is a master key for timing predictions.
+
+**Transit from natal Moon is the primary reference** in Vedic astrology, not transit from Ascendant. Many Western astrologers only look at Ascendant transits — Vedic tradition emphasizes Moon-based transits.
+
+---
+
+## Layer 8 — Divisional Charts (Varga Charts)
+
+These are the microscopes of astrology. The D1 gives the overall picture but divisional charts zoom into specific life areas.
+
+**D9 Navamsa** — The single most important chart after D1. Shows the deeper soul purpose, marriage quality, and whether natal promises will actually manifest. A planet weak in D1 but strong in D9 will still give results. A planet strong in D1 but weak in D9 may disappoint. Every prediction must be confirmed in D9.
+
+**D10 Dashamsa** — Dedicated entirely to career and professional life. What you actually do professionally, your workplace environment, achievements, and status. Used for all career questions.
+
+**D7 Saptamsa** — Children and creative progeny. Used to time and assess children.
+
+**D2 Hora** — Wealth accumulation specifically.
+
+**D3 Drekkana** — Siblings and courage.
+
+**D4 Chaturthamsa** — Property, real estate, fixed assets.
+
+**D6 Shashtamsa** — Health details and enemies.
+
+**D8 Ashtamsa** — Longevity, sudden events, hidden dangers.
+
+**D12 Dwadashamsa** — Parents, their karma affecting you.
+
+**D20 Vimshamsa** — Spiritual path and practices.
+
+**D60 Shashtyamsa** — The highest precision chart. Every degree tells a story. Used for extraordinary precision but requires birth time accurate to the minute.
+
+---
+
+## Layer 9 — Shadbala (Planetary Strength Calculation)
+
+A numerical system that calculates exactly how strong each planet is. Six types of strength combined:
+
+Sthana Bala — Positional strength based on sign (own, exalted, friendly etc).
+
+Dig Bala — Directional strength. Jupiter and Mercury strong in East (1st house). Venus and Moon strong in North (4th house). Saturn strong in West (7th house). Sun and Mars strong in South (10th house).
+
+Kala Bala — Time-based strength. Benefics stronger in day, malefics stronger at night. Moon stronger in bright half.
+
+Chesta Bala — Motional strength. Retrograde planets gain strength.
+
+Naisargika Bala — Natural strength. Sun always strongest, followed by Moon, Venus, Jupiter, Mercury, Mars, Saturn.
+
+Drig Bala — Aspectual strength. Being aspected by benefics adds strength.
+
+**In your system** — you could eventually calculate a simple strength score for each planet and weight the interpretations accordingly.
+
+---
+
+## Layer 10 — Ashtakavarga (Transit Precision System)
+
+This is an advanced system that assigns points (0-8) to each sign for each planet's transit. Based on the positions of all planets in the birth chart, each planet gets a "beneficial point" tally in each of the 12 signs.
+
+When a planet transits a sign where it has 4 or more points in the Ashtakavarga, the transit is positive. Below 4 points, the transit is challenging.
+
+**This dramatically improves transit prediction accuracy.** Two people both have Saturn transiting their 7th house. But one has 6 Ashtakavarga points there, the other has 2. The person with 6 points has a productive Saturn transit despite the difficult house. The person with 2 points suffers more.
+
+This is a system you could eventually build into your pattern engine to weight transit effects more precisely.
+
+---
+
+## Layer 11 — Muhurta (Electional Timing)
+
+Choosing auspicious times for beginning important actions. Not just about prediction — about optimization. A real astrologer uses this to tell you WHEN to act, not just what will happen.
+
+Key factors in Muhurta: Tithi (lunar day), Vara (weekday), Nakshatra (Moon's position), Yoga (Sun-Moon combination), Karana (half lunar day). These five together are called Panchanga.
+
+---
+
+## Layer 12 — Prashna (Horary Astrology)
+
+When someone asks a question at a specific moment, a chart is cast for that exact moment. The chart itself reveals the answer without needing the birth chart at all. Used when birth time is unknown or to confirm natal chart predictions.
+
+---
+
+## What This Means For Your System
+
+Right now your system has Layers 1, 2, 3 (basic), 6, 7 (basic), and 8 (basic). The knowledge base covers Layers 4 and 5 through the PDF books.
+
+The layers you can realistically add next for massive accuracy improvement:
+
+**Ashtakavarga** for transit scoring — this alone would make transit predictions dramatically more accurate. Instead of just saying "Saturn is in your 7th house" it would say "Saturn is in your 7th house WITH only 2 Ashtakavarga points meaning this transit is genuinely difficult."
+
+**Shadbala simplified** — a basic strength score for each natal planet that weights how much to trust that planet's contributions.
+
+**D9 and D10 confirmation** — before any prediction, check if the D9 and D10 support the D1 reading. If all three agree, confidence is HIGH.
+
+**Nakshatra lord chain** — for every planet, track not just the planet's sign but the nakshatra lord and the nakshatra lord's placement. This is called the sublord system and adds another layer of precision.
+
+The more of these layers your system checks simultaneously before generating a response, the closer it gets to how a genuine master astrologer thinks. A master never looks at just one factor. They hold all twelve layers in their mind at once and look for convergence.
+
+Want me to now write the technical implementation plan for adding Ashtakavarga and D9/D10 confirmation into your existing system?

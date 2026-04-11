@@ -1,0 +1,11 @@
+# Your Birth Information
+name: "Himanshu Rajak"
+gender: "Male"
+year: 2006
+month: 08            # August
+day: 22
+hour: 09             # 9:37 AM
+minute: 37
+city: "Jabalpur"
+nation: "IN"
+Timezone: "Asia/Kolkata"
