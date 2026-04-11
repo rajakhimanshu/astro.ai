@@ -30,6 +30,9 @@ import unicodedata
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+from kerykeion import AstrologicalSubject
+from dotenv import load_dotenv
+from core.astro_engine import calculate_vimshottari_dasha
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Reference Tables (Jyotish constants — same as multi_layer_engine.py)
@@ -355,8 +358,6 @@ def _compute_profile_from_kerykeion(birth_info: dict) -> dict:
     Uses kerykeion + Swiss Ephemeris to compute the real natal chart,
     then enriches it with all 12 Jyotish layers.
     """
-    from kerykeion import AstrologicalSubject
-    from dotenv import load_dotenv
     load_dotenv()
 
     geonames_user = os.getenv("GEONAMES_USERNAME", "himanshurajak_22")
@@ -456,7 +457,6 @@ def _compute_profile_from_kerykeion(birth_info: dict) -> dict:
     yogas = _detect_yogas(planets, lagna_sign)
 
     # ── Step 4: Vimshottari Dasha ────────────────────────────────────────────
-    from core.astro_engine import calculate_vimshottari_dasha
     birth_dt = datetime(int(birth_info["year"]), int(birth_info["month"]),
                         int(birth_info["day"]), int(birth_info["hour"]), int(birth_info["minute"]))
     moon_lon = planets["Moon"]["abs_pos"]
