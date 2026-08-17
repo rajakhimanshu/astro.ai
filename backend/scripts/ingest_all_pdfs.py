@@ -5,7 +5,7 @@ Unified PDF → ChromaDB Knowledge Base Ingestion Script
 
 Processes ALL sources in order:
   1. raw_pdfs/   — 10 classical Vedic astrology texts (BPHS, Encyclopedia, Phaladeepika, etc.)
-  2. VedicReport.pdf — Himanshu's personal Kundali report from AstroSage
+  2. VedicReport.pdf — User's personal Kundali report from AstroSage
   3. knowledge/  — Any .txt files already extracted
 
 Run this once (or whenever you add new PDFs).
