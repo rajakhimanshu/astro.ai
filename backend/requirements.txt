@@ -1,0 +1,18 @@
+# Jyotish AI — backend dependencies
+fastapi
+uvicorn
+pydantic
+python-dotenv
+groq
+ollama
+chromadb
+kerykeion
+swisseph
+pyyaml
+# Knowledge ingest
+youtube-transcript-api
+yt-dlp
+deep-translator
+langdetect
+# PDF scripts (optional)
+pymupdf
