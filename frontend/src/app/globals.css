@@ -1,52 +1,103 @@
 @import "tailwindcss";
 
 @theme {
+  --color-cream-50: #FCFCFA;
+  --color-cream-100: #F7F5F0;
+  --color-cream-200: #E6E1D6;
+  
+  --color-ink-900: #0F0F0F;
+  --color-ink-800: #1C1C1C;
+  --color-ink-600: #4A4A4A;
+  --color-ink-400: #828282;
+  
+  --color-terracotta: #B95B40;
+  --color-deep-navy: #152238;
+  --color-classic-gold: #C5A059;
+
   --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
-  --background: #0b0710;
-  --foreground: #fcfbfd;
+  --background: #F7F5F0;
+  --foreground: #0F0F0F;
+  --color-bg-base: #F7F5F0;
+  --color-bg-surface: #FCFCFA;
+  --color-text-main: #0F0F0F;
+  --color-text-dim: #828282;
+  --color-border: rgba(15, 15, 15, 0.1);
+}
+
+.dark {
+  --background: #0A0A0A;
+  --foreground: #F2F2F2;
+  --color-bg-base: #0A0A0A;
+  --color-bg-surface: #121212;
+  --color-text-main: #F2F2F2;
+  --color-text-dim: #909090;
+  --color-border: rgba(255, 255, 255, 0.08);
   
-  --primary: #8a2be2;
-  --primary-glow: rgba(138, 43, 226, 0.4);
-  --secondary: #2f2043;
-  --accent: #ffd700;
+  --color-cream-100: #0A0A0A;
+  --color-cream-50: #121212;
+  --color-cream-200: #1E1E1E;
   
-  --card-bg: rgba(25, 18, 38, 0.7);
-  --card-border: rgba(138, 43, 226, 0.2);
+  --color-ink-900: #F2F2F2;
+  --color-ink-800: #D4D4D4;
+  --color-ink-600: #A3A3A3;
+  --color-ink-400: #737373;
+}
+
+/* Required for full-viewport flex layout */
+html,
+body {
+  height: 100%;
+  width: 100%;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  background-image: 
-    radial-gradient(ellipse at top center, rgba(35, 15, 60, 0.8) 0%, transparent 50%),
-    radial-gradient(ellipse at bottom left, rgba(20, 10, 40, 0.9) 0%, transparent 50%);
-  min-height: 100vh;
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Glassmorphism Classes */
-.glass-panel {
-  background: var(--card-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--card-border);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-}
-
-/* Custom Scrollbar */
+/* ── Scrollbar ─────────────────────────────────────────── */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
+  width: 5px;
+  height: 5px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 10px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* ── Paper texture overlay ─────────────────────────────── */
+/* z-index: -1 keeps it BEHIND all interactive content */
+.paper-texture {
+  position: relative;
+}
+.paper-texture::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.06'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ── Remove number spinner arrows ──────────────────────── */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
 }
