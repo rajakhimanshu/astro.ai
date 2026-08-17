@@ -1,11 +1,11 @@
 # Your Birth Information
-name: "Himanshu Rajak"
+name: "John Doe"
 gender: "Male"
-year: 2006
-month: 08            # August
-day: 22
-hour: 09             # 9:37 AM
-minute: 37
-city: "Jabalpur"
-nation: "IN"
-Timezone: "Asia/Kolkata"
+year: 1990
+month: 01            # January
+day: 01
+hour: 12             # 12:00 PM
+minute: 00
+city: "New York"
+nation: "US"
+Timezone: "America/New_York"
