@@ -1,0 +1,639 @@
+# MY COMPLETE ASTROLOGICAL DATA
+
+## 1. BIRTH INFORMATION
+
+**Date:** 22/08/2006
+
+**Time:** 9:37:29 AM
+
+**Place:** Jabalpur, Madhya Pradesh, India
+
+**Coordinates:** 23°10'N, 79°57'E
+
+**Time Zone:** IST +5.5
+
+**LMT at Birth:** 9:27:17
+
+**GMT at Birth:** 4:07:29
+
+## 2. ASCENDANT
+
+**Sign:** Virgo
+
+**Degree:** 26°26'03"
+
+**Nakshatra:** Chitra
+
+**Pada:** 1
+
+**Lord:** Mercury
+
+**Lord Position:** 11th House, Cancer, 24°51'46"
+
+## 3. PLANETARY POSITIONS (D-1 RASHI)
+
+### SUN
+
+**Sign:** Leo
+
+**House:** 12th
+
+**Degree:** 5°00'12"
+
+**Nakshatra:** Magha
+
+**Pada:** 2
+
+**Retrograde:** No
+
+**Combust:** N/A (it's Sun)
+
+**Status:** Own sign (Exalted in house placement)
+
+### MOON
+
+**Sign:** Cancer
+
+**House:** 11th
+
+**Degree:** 17°00'23"
+
+**Nakshatra:** Ashlesha
+
+**Pada:** 1
+
+**Retrograde:** No
+
+**Combust:** No
+
+**Status:** Own sign
+
+### MARS
+
+**Sign:** Leo
+
+**House:** 12th
+
+**Degree:** 25°10'11"
+
+**Nakshatra:** Purva Phalguni
+
+**Pada:** 4
+
+**Retrograde:** No
+
+**Combust:** No
+
+**Status:** Friend's sign
+
+### MERCURY
+
+**Sign:** Cancer
+
+**House:** 11th
+
+**Degree:** 24°51'46"
+
+**Nakshatra:** Ashlesha
+
+**Pada:** 3
+
+**Retrograde:** No
+
+**Combust:** Yes
+
+**Status:** Enemy sign
+
+### JUPITER
+
+**Sign:** Libra
+
+**House:** 2nd
+
+**Degree:** 18°09'03"
+
+**Nakshatra:** Swati
+
+**Pada:** 4
+
+**Retrograde:** No
+
+**Combust:** No
+
+**Status:** Enemy Sign
+
+### VENUS
+
+**Sign:** Cancer
+
+**House:** 11th
+
+**Degree:** 17°28'28"
+
+**Nakshatra:** Ashlesha
+
+**Pada:** 1
+
+**Retrograde:** No
+
+**Combust:** No
+
+**Status:** Enemy sign
+
+### SATURN
+
+**Sign:** Cancer
+
+**House:** 11th
+
+**Degree:** 22°45'31"
+
+**Nakshatra:** Ashlesha
+
+**Pada:** 2
+
+**Retrograde:** No
+
+**Combust:** Yes
+
+**Status:** Enemy sign
+
+### RAHU
+
+**Sign:** Pisces
+
+**House:** 7th
+
+**Degree:** 2°41'41"
+
+**Nakshatra:** Purva Bhadrapada
+
+**Pada:** 4
+
+**Retrograde:** Yes (always retrograde)
+
+**Combust:** No
+
+**Status:** N/A
+
+### KETU
+
+**Sign:** Virgo
+
+**House:** 1st
+
+**Degree:** 2°41'41"
+
+**Nakshatra:** Uttara Phalguni
+
+**Pada:** 2
+
+**Retrograde:** Yes (always retrograde)
+
+**Combust:** No
+
+**Status:** N/A
+
+---
+
+## 4. HOUSE CUSPS
+
+**1st House:** Virgo at 11°21'59"
+
+**2nd House:** Libra at 11°21'59"
+
+**3rd House:** Scorpio at 11°25'51"
+
+**4th House:** Sagittarius at 11°29'43"
+
+**5th House:** Capricorn at 11°29'43"
+
+**6th House:** Aquarius at 11°25'51"
+
+**7th House:** Pisces at 11°21'59"
+
+**8th House:** Aries at 11°21'59"
+
+**9th House:** Taurus at 11°25'51"
+
+**10th House:** Gemini at 11°29'43"
+
+**11th House:** Cancer at 11°29'43"
+
+**12th House:** Leo at 11°25'51"
+
+## 5. CURRENT DASHA
+
+**Mahadasha:** Ketu (17 March 2023 to 17 March 2030)
+
+**Antardasha:** Mars (20 September 2025 to 17 February 2026)
+
+Next Antardasha : Rahu (17/02/2026 To 2027
+
+**Dasha Balance at Birth:** Mercury 16 Years 6 Months 24 Days
+
+---
+
+---
+
+Now Providing Other D’s Chart , Calculate The Other Postions Too Means I am only providing where planet is sitting for empty house calculate the zodaic sign by your own 
+
+---
+
+---
+
+## 6. NAVAMSA (D-9) POSITIONS
+
+### D-9 Lagna: Leo
+
+| Planet | Sign | House  | Nakshatra |
+| --- | --- | --- | --- |
+| Assendent  | Leo | 1st House |  |
+| **Sun** | Taurus | 10th | Rohini |
+| **Moon** | Sagittarius | 5th | Purva Ashadha |
+| **Mars** | Scripo | 4th | Revati |
+| **Mercury** | Aquarius | 5th | Satabhisha |
+| **Jupiter** | Piceses | 8th | Shravana |
+| **Venus** | Sagittarius | 5th | Purva Ashadha |
+| **Saturn** | Capricorn | 6th | Satabhisha |
+| **Rahu** | Cancer | 12th | Anuradha |
+| **Ketu** | Capricorn | 6th | Rohini |
+
+## 7. DASAMSA (D-10) POSITIONS
+
+### D-10 Lagna: Capricorn
+
+| Planet | Sign | House  |
+| --- | --- | --- |
+| Assendent | Capricorn | 1st  |
+| **Jupiter** | Aries | 4th |
+| **Mars** | Aries | 4th |
+| **Ketu** | Tarrus | 5th |
+| **Moon** | Leo | 8th |
+| **Venus** | Leo | 8th |
+| **Sun** | Virgo | 9th |
+| **Saturn** | Libra (E) | 10th |
+| **Mercury** | Scripo | 11th |
+| **Rahu** | Scripo | 11th |
+
+## 8. SAPTAMSA (D-7) - CHILDREN
+
+### D-7 Lagna: Virgo
+
+| Planet | Sign | House |
+| --- | --- | --- |
+| **Sun** | Virgo | 1st |
+| **Rahu** | Virgo | 1st |
+| **Mars** | Capricorn | 5th |
+| **Jupiter** | Aquarius | 6th |
+| **Ketu** | Pisces | 7th |
+| **Moon** | Aries | 8th |
+| **Venus** | Aries | 8th |
+| **Mercury** | Gemini | 10th |
+| **Saturn** | Gemini | 10th |
+
+## 9. SHASHTIAMSA (D-60) - OVERALL LIFE
+
+### Assendent Is Capricorn
+
+| Planet | Sign | House |
+| --- | --- | --- |
+| **Sun** | Gemmini | 6th |
+| **Moon** | Tarrus | 5th |
+| **Mars** | Libra | 10th |
+| **Mercury** | Leo | 8th |
+| **Jupiter** | Libra | 10th |
+| **Venus** | Tarrus | 5th |
+| **Saturn** | Aries | 4th |
+| **Rahu** | Leo | 8th |
+| **Ketu** | Aquraus | 2nd |
+
+## 10. Hora Wealth (D-2) -
+
+Assendent Leo
+
+| Planet | Sign | House |
+| --- | --- | --- |
+| **Sun** | Leo | 1st |
+| **Moon** | Leo | 1st |
+| **Mercury** | Leo | 1st |
+| **Venus** | Leo | 1st |
+| **Saturn** | Leo | 1st |
+| **Mars** | cancer | 12th |
+| **Jupiter** | cancer | 12th |
+| **Rahu** | Cancer | 12th |
+| **Ketu** | Cancer | 12th |
+
+**Matrikaraka:** Moon
+
+**Putrakaraka:** Jupiter
+
+**Gnatikaraka:** Saturn
+
+**Darakaraka:** Venus
+
+## 10. ASHTAKAVARGA (Total Bindus)
+
+### Sun Ashtakavarga:
+
+House 1: 5 points
+
+House 2: 5 points
+
+House 3: 6 points
+
+House 4: 2 points
+
+House 5: 5 points
+
+House 6: 4 points
+
+House 7: 1 points
+
+House 8: 4 points
+
+House 9: 4 points
+
+House 10: 2 points
+
+House 11: 5 points
+
+House 12: 5 points
+
+**Total:** 48
+
+### Moon Ashtakavarga:
+
+House 1: 5 points
+
+House 2: 7 points
+
+House 3: 3 points
+
+House 4: 4 points
+
+House 5: 1 points
+
+House 6: 6 points
+
+House 7: 5 points
+
+House 8: 4 points
+
+House 9: 3 points
+
+House 10: 6 points
+
+House 11: 3 points
+
+House 12: 2 points
+
+**Total:** 49
+
+### Mars Ashtakavarga:
+
+House 1: 1 points
+
+House 2: 6 points
+
+House 3: 4 points
+
+House 4: 3 points
+
+House 5: 2 points
+
+House 6: 5 points
+
+House 7: 2 points
+
+House 8: 3 points
+
+House 9: 4 points
+
+House 10: 2 points
+
+House 11: 4 points
+
+House 12: 3 points
+
+**Total:** 39
+
+### Mercury Ashtakavarga:
+
+House 1: 6 points
+
+House 2: 6 points
+
+House 3: 4 points
+
+House 4: 5 points
+
+House 5: 5 points
+
+House 6: 5 points
+
+House 7: 4 points
+
+House 8: 3 points
+
+House 9: 4 points
+
+House 10: 2 points
+
+House 11: 5 points
+
+House 12: 5 points
+
+**Total:** 54
+
+### Jupiter Ashtakavarga:
+
+House 1: 4 points
+
+House 2: 7 points
+
+House 3: 4 points
+
+House 4: 3 points
+
+House 5: 6 points
+
+House 6: 4 points
+
+House 7: 4 points
+
+House 8: 7 points
+
+House 9: 5 points
+
+House 10: 3 points
+
+House 11: 3 points
+
+House 12: 6 points
+
+**Total:** 56
+
+### Venus Ashtakavarga:
+
+House 1: 4 points
+
+House 2: 6 points
+
+House 3: 4 points
+
+House 4: 6 points
+
+House 5: 3 points
+
+House 6: 5 points
+
+House 7: 5 points
+
+House 8: 5 points
+
+House 9: 3 points
+
+House 10: 2 points
+
+House 11: 4 points
+
+House 12: 5 points
+
+**Total:** 52
+
+### Saturn Ashtakavarga:
+
+House 1: 1 points
+
+House 2: 6 points
+
+House 3: 5 points
+
+House 4: 2 points
+
+House 5: 2 points
+
+House 6: 5 points
+
+House 7: 1 points
+
+House 8: 3 points
+
+House 9: 6 points
+
+House 10: 1 points
+
+House 11: 4 points
+
+House 12: 3 points
+
+**Total:** 39
+
+### Sarvashtakavarga (Total):
+
+House 1: 26 points
+
+House 2: 43 points
+
+House 3: 30 points
+
+House 4: 25 points
+
+House 5: 24 points
+
+House 6: 34 points
+
+House 7: 22 points
+
+House 8: 29 points
+
+House 9: 29 points
+
+House 10: 18 points
+
+House 11: 28 points
+
+House 12: 29 points
+
+**Grand Total:** 337
+
+## 12. PLANETARY STRENGTHS
+
+### Shadbala (in Rupas):
+
+**Sun:** 564.52 (9.41 Rupas) - Rank 1 ⭐
+
+**Moon:** 349.99 (5.83 Rupas) - Rank 5
+
+**Mars:** 380.63 (6.34 Rupas) - Rank 2
+
+**Mercury:** 486.48 (8.11 Rupas) - Rank 3
+
+**Jupiter:** 372.31 (6.21 Rupas) - Rank 6
+
+**Venus:** 381.28 (6.35 Rupas) - Rank 4
+
+**Saturn:** 275.21 (4.59 Rupas) - Rank 7
+
+**Minimum Requirements vs Actual:**
+
+- Sun: Required 5, Got 9.41 ✅ (Ratio: 1.88)
+- Moon: Required 6, Got 5.83 ⚠️ (Ratio: 0.97)
+- Mars: Required 5, Got 6.34 ✅ (Ratio: 1.27)
+- Mercury: Required 7, Got 8.11 ✅ (Ratio: 1.16)
+- Jupiter: Required 6.5, Got 6.21 ⚠️ (Ratio: 0.95)
+- Venus: Required 5.5, Got 6.35 ✅ (Ratio: 1.16)
+- Saturn: Required 5, Got 4.59 ⚠️ (Ratio: 0.92)
+
+## 13. BHAVA BALA (House Strength in Rupas)
+
+**1st House:** 511.19 (8.52 Rupas) - Rank 3
+
+**2nd House:** 363.15 (6.05 Rupas) - Rank 8
+
+**3rd House:** 346.53 (5.78 Rupas) - Rank 10
+
+**4th House:** 380.96 (6.35 Rupas) - Rank 6
+
+**5th House:** 281.00 (4.68 Rupas) - Rank 11
+
+**6th House:** 254.83 (4.25 Rupas) - Rank 12 (weakest)
+
+**7th House:** 358.98 (5.98 Rupas) - Rank 9
+
+**8th House:** 435.62 (7.26 Rupas) - Rank 5
+
+**9th House:** 467.47 (7.79 Rupas) - Rank 4
+
+**10th House:** 572.30 (9.54 Rupas) - Rank 2
+
+**11th House:** 370.83 (6.18 Rupas) - Rank 7
+
+**12th House:** 603.24 (10.05 Rupas) - Rank 1 ⭐ (strongest)
+
+## 14. KARAKAS (Jaimini System)
+
+### Chara Karakas (by degree):
+
+**Atmakaraka (Soul):** Mars (25°10'11" - highest degree)
+
+**Amatyakaraka (Career/Minister):** Mercury (24°51'47")
+
+**Bhratrikaraka (Siblings):** Saturn (22°45'31")
+
+**Matrikaraka (Mother):** Jupiter (18°09'03")
+
+**Putrakaraka (Children):** Venus (17°28'29")
+
+**Gnatikaraka (Enemies/Obstacles):** Moon (17°00'23")
+
+**Darakaraka (Spouse):** Sun (5°00'13" - lowest degree)
+
+### Sthira Karakas (fixed):
+
+**Atmakaraka:** Sun
+
+**Amatyakaraka:** Mercury
+
+**Bhratrikaraka:** Mars
