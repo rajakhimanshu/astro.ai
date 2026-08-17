@@ -12,8 +12,19 @@ NAKSHATRAS = [
     "Shatabhisha", "Purva Bhadrapada", "Uttara Bhadrapada", "Revati"
 ]
 
+SIGNS = [
+    "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", 
+    "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"
+]
+
 DASHA_LORDS = ["Ketu", "Venus", "Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury"]
 DASHA_YEARS = [7, 20, 6, 10, 7, 18, 16, 19, 17]
+
+def datetime_to_jd(dt, lon=0.0):
+    """Converts a datetime object to Julian Day number using Swiss Ephemeris."""
+    import swisseph as swe
+    hour = dt.hour + dt.minute/60.0 + dt.second/3600.0
+    return swe.julday(dt.year, dt.month, dt.day, hour)
 
 def get_nakshatra_and_pada(abs_pos):
     """Calculates Nakshatra and Pada from absolute position (0-360)."""
@@ -22,176 +33,673 @@ def get_nakshatra_and_pada(abs_pos):
     pada = ((total_minutes % 800) // 200) + 1
     return NAKSHATRAS[nak_idx], int(pada)
 
+def get_divisional_chart(subject, division):
+    """
+    Calculates divisional chart (Varga) positions for planets and Lagna.
+    Supported divisions: 9 (Navamsha), 10 (Dashamsha)
+    Calculates based on BPHS rules.
+    """
+    m = subject.model()
+    planets_keys = {
+        'sun': 'sun', 'moon': 'moon', 'mercury': 'mercury', 'venus': 'venus', 
+        'mars': 'mars', 'jupiter': 'jupiter', 'saturn': 'saturn',
+        'true_north_lunar_node': 'rahu', 'true_south_lunar_node': 'ketu'
+    }
+    
+    div_chart = {}
+    
+    # Process planets
+    for key, name in planets_keys.items():
+        p = getattr(m, key)
+        div_chart[name] = calculate_varga_position(p.abs_pos, division)
+        
+    # Process Lagna
+    div_chart['lagna'] = calculate_varga_position(m.ascendant.abs_pos, division)
+    
+    return div_chart
+
+def calculate_varga_position(abs_pos, n):
+    """
+    Calculates the sign and position for any divisional chart (Varga).
+    Implements standard BPHS (Brihat Parashara Hora Shastra) rules.
+    """
+    sign_idx = int(abs_pos // 30)
+    pos_in_sign = abs_pos % 30
+    
+    res_sign_idx = 0
+    
+    if n == 1: # Rashi
+        res_sign_idx = sign_idx
+        
+    elif n == 2: # Hora (2 parts)
+        # Odd signs: 0-15 Sun (Leo), 15-30 Moon (Cancer)
+        # Even signs: 0-15 Moon (Cancer), 15-30 Sun (Leo)
+        is_odd = sign_idx % 2 == 0 # 0=Aries (Odd)
+        if is_odd:
+            res_sign_idx = 4 if pos_in_sign < 15 else 3 # Leo if 1st half, else Cancer
+        else:
+            res_sign_idx = 3 if pos_in_sign < 15 else 4 # Cancer if 1st half, else Leo
+            
+    elif n == 3: # Drekkana (3 parts)
+        # 1st part: Same sign, 2nd: 5th from it, 3rd: 9th from it
+        part = int(pos_in_sign // 10)
+        res_sign_idx = (sign_idx + (part * 4)) % 12
+        
+    elif n == 4: # Chaturthamsa (4 parts)
+        # 1, 4, 7, 10 from the sign
+        part = int(pos_in_sign // 7.5)
+        res_sign_idx = (sign_idx + (part * 3)) % 12
+        
+    elif n == 7: # Saptamsha (7 parts)
+        # Odd: Start from sign, Even: Start from 7th sign
+        part = int(pos_in_sign // (30/7))
+        start_sign = sign_idx if sign_idx % 2 == 0 else (sign_idx + 6) % 12
+        res_sign_idx = (start_sign + part) % 12
+        
+    elif n == 9: # Navamsha (9 parts)
+        # Fire: Aries, Earth: Cap, Air: Libra, Water: Cancer
+        start_signs = [0, 9, 6, 3, 0, 9, 6, 3, 0, 9, 6, 3]
+        start_sign = start_signs[sign_idx]
+        part = int(pos_in_sign // (30/9))
+        res_sign_idx = (start_sign + part) % 12
+        
+    elif n == 10: # Dashamsha (10 parts)
+        # Odd: Sign itself, Even: 9th from it
+        start_sign = sign_idx if sign_idx % 2 == 0 else (sign_idx + 8) % 12
+        part = int(pos_in_sign // 3)
+        res_sign_idx = (start_sign + part) % 12
+        
+    elif n == 12: # Dwadashamsha (12 parts)
+        # Start from sign itself
+        part = int(pos_in_sign // 2.5)
+        res_sign_idx = (sign_idx + part) % 12
+        
+    elif n == 16: # Shodashamsha (16 parts)
+        # Movable: Aries, Fixed: Leo, Dual: Sag
+        starts = [0, 4, 8] # Aries, Leo, Sag
+        start_sign = starts[sign_idx % 3]
+        part = int(pos_in_sign // (30/16))
+        res_sign_idx = (start_sign + part) % 12
+        
+    elif n == 20: # Vimshamsha (20 parts)
+        # Movable: Aries, Fixed: Sag, Dual: Leo
+        starts = [0, 8, 4] # Aries, Sag, Leo
+        start_sign = starts[sign_idx % 3]
+        part = int(pos_in_sign // 1.5)
+        res_sign_idx = (start_sign + part) % 12
+        
+    elif n == 24: # Chaturvimshamsha (24 parts)
+        # Odd: Leo, Even: Cancer (Wait, BPHS standard is Odd: Leo, Even: Cancer)
+        start_sign = 4 if sign_idx % 2 == 0 else 3
+        part = int(pos_in_sign // 1.25)
+        res_sign_idx = (start_sign + part) % 12
+        
+    elif n == 27: # Sapta-vimshamsha (Nakshatramsa)
+        # Same logic as D9 but 27 parts
+        start_signs = [0, 9, 6, 3, 0, 9, 6, 3, 0, 9, 6, 3]
+        start_sign = start_signs[sign_idx]
+        part = int(pos_in_sign // (30/27))
+        res_sign_idx = (start_sign + part) % 12
+        
+    elif n == 30: # Trimshamsha (30 parts)
+        # Odd: 5 deg each for Mars, Sat, Jup, Mer, Ven
+        # Even: 5 deg each for Ven, Mer, Jup, Sat, Mars
+        if sign_idx % 2 == 0: # Odd
+            if pos_in_sign < 5: res_sign_idx = 0 # Aries (Mars)
+            elif pos_in_sign < 10: res_sign_idx = 10 # Aquarius (Sat)
+            elif pos_in_sign < 18: res_sign_idx = 8 # Sag (Jup)
+            elif pos_in_sign < 25: res_sign_idx = 2 # Gemini (Mer)
+            else: res_sign_idx = 6 # Libra (Ven)
+        else: # Even
+            if pos_in_sign < 5: res_sign_idx = 1 # Taurus (Ven)
+            elif pos_in_sign < 12: res_sign_idx = 5 # Virgo (Mer)
+            elif pos_in_sign < 20: res_sign_idx = 11 # Pisces (Jup)
+            elif pos_in_sign < 25: res_sign_idx = 9 # Cap (Sat)
+            else: res_sign_idx = 7 # Scorpio (Mars)
+            
+    elif n == 40: # Khavedamsha (40 parts)
+        # Odd: Aries, Even: Libra
+        start_sign = 0 if sign_idx % 2 == 0 else 6
+        part = int(pos_in_sign // 0.75)
+        res_sign_idx = (start_sign + part) % 12
+        
+    elif n == 45: # Akshavedamsha (45 parts)
+        # Movable: Aries, Fixed: Leo, Dual: Sag
+        starts = [0, 4, 8]
+        start_sign = starts[sign_idx % 3]
+        part = int(pos_in_sign // (30/45))
+        res_sign_idx = (start_sign + part) % 12
+        
+    elif n == 60: # Shashtyamsha (60 parts)
+        # Start from sign itself
+        part = int(pos_in_sign // 0.5)
+        res_sign_idx = (sign_idx + part) % 12
+        
+    else:
+        # Generic fallback
+        signs_to_advance = int(pos_in_sign * n // 30)
+        res_sign_idx = (sign_idx * n + signs_to_advance) % 12
+
+    res_sign = SIGNS[res_sign_idx % 12]
+    return {
+        "sign": res_sign,
+        "sign_idx": res_sign_idx % 12,
+        "degree_in_varga": round((pos_in_sign * n) % 30, 2)
+    }
+
+def get_d9_navamsa(subject):
+    return get_divisional_chart(subject, 9)
+
+def get_d10_dashamsa(subject):
+    return get_divisional_chart(subject, 10)
+
+def format_divisional_for_ai(div_chart, div_name):
+    """Formats divisional chart for LLM context."""
+    lines = [f"{div_name.upper()} CHART:"]
+    
+    # Sort to keep Lagna first, then others
+    order = ['lagna', 'sun', 'moon', 'mars', 'mercury', 'jupiter', 'venus', 'saturn', 'rahu', 'ketu']
+    
+    lagna_sign_idx = div_chart['lagna']['sign_idx']
+    
+    for key in order:
+        if key in div_chart:
+            p = div_chart[key]
+            # Calculate house relative to Varga Lagna (Whole Sign)
+            house = (p['sign_idx'] - lagna_sign_idx + 12) % 12 + 1
+            name = key.capitalize()
+            lines.append(f"{name}: {p['sign']} (House {house})")
+            
+    return "\n".join(lines)
+
+# --- PLANETARY STRENGTH & DIGNITY ---
+
+# Natural Friendships in Vedic Astrology
+PLANET_FRIENDS = {
+    "sun": {"friends": ["moon", "mars", "jupiter"], "neutrals": ["mercury"], "enemies": ["venus", "saturn"]},
+    "moon": {"friends": ["sun", "mercury"], "neutrals": ["mars", "jupiter", "venus", "saturn"], "enemies": []},
+    "mars": {"friends": ["sun", "moon", "jupiter"], "neutrals": ["venus", "saturn"], "enemies": ["mercury"]},
+    "mercury": {"friends": ["sun", "venus"], "neutrals": ["mars", "jupiter", "saturn"], "enemies": ["moon"]},
+    "jupiter": {"friends": ["sun", "moon", "mars"], "neutrals": ["saturn"], "enemies": ["mercury", "venus"]},
+    "venus": {"friends": ["mercury", "saturn"], "neutrals": ["mars", "jupiter"], "enemies": ["sun", "moon"]},
+    "saturn": {"friends": ["mercury", "venus"], "neutrals": ["jupiter"], "enemies": ["sun", "moon", "mars"]},
+    "rahu": {"friends": ["mercury", "venus", "saturn"], "neutrals": ["jupiter"], "enemies": ["sun", "moon", "mars"]},
+    "ketu": {"friends": ["sun", "moon", "mars"], "neutrals": ["jupiter"], "enemies": ["mercury", "venus", "saturn"]}
+}
+
+def calculate_planet_dignity(planet, sign, degree):
+    """Calculates the dignity and points for a planet based on sign and degree."""
+    p = planet.lower()
+    s = sign.capitalize()
+    d = float(degree)
+    
+    # Dignity mappings
+    dignity = "Neutral"
+    points = 1
+    
+    if p == "sun":
+        if s == "Aries":
+            dignity = "Exalted"
+            points = 5
+        elif s == "Libra":
+            dignity = "Debilitated"
+            points = -3
+        elif s == "Leo":
+            if 0 <= d <= 20:
+                dignity = "Moolatrikona"
+                points = 3.5
+            else:
+                dignity = "Own Sign"
+                points = 4
+    
+    elif p == "moon":
+        if s == "Taurus":
+            if 0 <= d <= 3:
+                dignity = "Exalted"
+                points = 5
+            else:
+                dignity = "Moolatrikona"
+                points = 3.5
+        elif s == "Scorpio":
+            dignity = "Debilitated"
+            points = -3
+        elif s == "Cancer":
+            dignity = "Own Sign"
+            points = 4
+            
+    elif p == "mars":
+        if s == "Capricorn":
+            dignity = "Exalted"
+            points = 5
+        elif s == "Cancer":
+            dignity = "Debilitated"
+            points = -3
+        elif s == "Aries":
+            if 0 <= d <= 12:
+                dignity = "Moolatrikona"
+                points = 3.5
+            else:
+                dignity = "Own Sign"
+                points = 4
+        elif s == "Scorpio":
+            dignity = "Own Sign"
+            points = 4
+            
+    elif p == "mercury":
+        if s == "Virgo":
+            if 0 <= d <= 15:
+                dignity = "Exalted"
+                points = 5
+            elif 16 <= d <= 20:
+                dignity = "Moolatrikona"
+                points = 3.5
+            else:
+                dignity = "Own Sign"
+                points = 4
+        elif s == "Pisces":
+            dignity = "Debilitated"
+            points = -3
+        elif s == "Gemini":
+            dignity = "Own Sign"
+            points = 4
+            
+    elif p == "jupiter":
+        if s == "Cancer":
+            dignity = "Exalted"
+            points = 5
+        elif s == "Capricorn":
+            dignity = "Debilitated"
+            points = -3
+        elif s == "Sagittarius":
+            if 0 <= d <= 10:
+                dignity = "Moolatrikona"
+                points = 3.5
+            else:
+                dignity = "Own Sign"
+                points = 4
+        elif s == "Pisces":
+            dignity = "Own Sign"
+            points = 4
+            
+    elif p == "venus":
+        if s == "Pisces":
+            dignity = "Exalted"
+            points = 5
+        elif s == "Virgo":
+            dignity = "Debilitated"
+            points = -3
+        elif s == "Libra":
+            if 0 <= d <= 15:
+                dignity = "Moolatrikona"
+                points = 3.5
+            else:
+                dignity = "Own Sign"
+                points = 4
+        elif s == "Taurus":
+            dignity = "Own Sign"
+            points = 4
+            
+    elif p == "saturn":
+        if s == "Libra":
+            dignity = "Exalted"
+            points = 5
+        elif s == "Aries":
+            dignity = "Debilitated"
+            points = -3
+        elif s == "Aquarius":
+            if 0 <= d <= 20:
+                dignity = "Moolatrikona"
+                points = 3.5
+            else:
+                dignity = "Own Sign"
+                points = 4
+        elif s == "Capricorn":
+            dignity = "Own Sign"
+            points = 4
+            
+    elif p == "rahu":
+        if s in ["Taurus", "Gemini"]:
+            dignity = "Exalted"
+            points = 5
+        elif s in ["Scorpio", "Sagittarius"]:
+            dignity = "Debilitated"
+            points = -3
+            
+    elif p == "ketu":
+        if s in ["Scorpio", "Sagittarius"]:
+            dignity = "Exalted"
+            points = 5
+        elif s in ["Taurus", "Gemini"]:
+            dignity = "Debilitated"
+            points = -3
+
+    # If dignity still neutral, check friendship
+    if dignity == "Neutral":
+        # We need to know who rules the current sign
+        sign_lords = {
+            "Aries": "mars", "Taurus": "venus", "Gemini": "mercury", "Cancer": "moon",
+            "Leo": "sun", "Virgo": "mercury", "Libra": "venus", "Scorpio": "mars",
+            "Sagittarius": "jupiter", "Capricorn": "saturn", "Aquarius": "saturn", "Pisces": "jupiter"
+        }
+        lord = sign_lords.get(s)
+        if lord and p in PLANET_FRIENDS:
+            rels = PLANET_FRIENDS[p]
+            if lord in rels["friends"]:
+                dignity = "Friendly"
+                points = 2
+            elif lord in rels["enemies"]:
+                dignity = "Enemy"
+                points = -1
+                
+    return {"dignity": dignity, "points": points}
+
+def calculate_all_dignities(subject):
+    """Calculates dignities, retro, and combustion for all planets."""
+    m = subject.model()
+    planets_keys = {
+        'sun': 'sun', 'moon': 'moon', 'mercury': 'mercury', 'venus': 'venus', 
+        'mars': 'mars', 'jupiter': 'jupiter', 'saturn': 'saturn',
+        'true_north_lunar_node': 'rahu', 'true_south_lunar_node': 'ketu'
+    }
+    
+    results = {}
+    sun_pos = m.sun.abs_pos
+    
+    for key, name in planets_keys.items():
+        p = getattr(m, key)
+        dig_info = calculate_planet_dignity(name, p.sign, p.position)
+        
+        # Retrograde
+        is_retro = p.retrograde
+        
+        # Combustion (distance from Sun)
+        is_combust = False
+        if name != "sun" and name not in ["rahu", "ketu"]:
+            diff = abs(p.abs_pos - sun_pos)
+            if diff > 180: diff = 360 - diff
+            
+            # Specific combustion orbs per user formula
+            limit = 15.0 # default
+            if name == "moon": limit = 12.0
+            elif name == "mars": limit = 17.0
+            elif name == "mercury": limit = 12.0 if is_retro else 14.0
+            elif name == "jupiter": limit = 11.0
+            elif name == "venus": limit = 8.0 if is_retro else 10.0
+            elif name == "saturn": limit = 15.0
+            
+            if diff <= limit:
+                is_combust = True
+                dig_info["points"] -= 2 # Penalty for combustion
+        
+        results[name] = {
+            "dignity": dig_info["dignity"],
+            "points": dig_info["points"],
+            "sign": p.sign,
+            "house": p.house,
+            "is_retrograde": is_retro,
+            "is_combust": is_combust
+        }
+        
+    return results
+
+def get_strength_summary(subject):
+    """Returns human readable strength summary for LLM context."""
+    dignities = calculate_all_dignities(subject)
+    lines = ["PLANETARY STRENGTH SUMMARY:"]
+    
+    # Define house map locally just in case
+    house_map = {
+        "First_House": 1, "Second_House": 2, "Third_House": 3, "Fourth_House": 4,
+        "Fifth_House": 5, "Sixth_House": 6, "Seventh_House": 7, "Eighth_House": 8,
+        "Ninth_House": 9, "Tenth_House": 10, "Eleventh_House": 11, "Twelfth_House": 12
+    }
+    
+    order = ["sun", "moon", "mars", "mercury", "jupiter", "venus", "saturn", "rahu", "ketu"]
+    for name in order:
+        if name in dignities:
+            d = dignities[name]
+            h_val = d['house']
+            if isinstance(h_val, str):
+                h_val = house_map.get(h_val, 0)
+                
+            strength = "Average"
+            if d['points'] >= 5: strength = "Extreme"
+            elif d['points'] >= 3.5: strength = "Strong"
+            elif d['points'] >= 2: strength = "Good"
+            elif d['points'] < 0: strength = "Weak"
+            
+            status_parts = []
+            if d['is_retrograde']: status_parts.append("RETROGRADE")
+            if d['is_combust']: status_parts.append("COMBUST")
+            
+            status_str = f" — {', '.join(status_parts)}" if status_parts else ""
+            
+            lines.append(f"{name.capitalize()}: {d['dignity']} ({strength}) in {d['sign']} House {h_val}{status_str}")
+            
+    return "\n".join(lines)
+
+DASHA_LORDS = ["Ketu", "Venus", "Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury"]
+DASHA_YEARS = [7, 20, 6, 10, 7, 18, 16, 19, 17]
+# Standard Vimshottari year length (matches AstroSage / most modern calculators)
+VIMSHOTTARI_DAYS_PER_YEAR = 365.25
+
+
+def _nakshatra_balance(moon_lon: float) -> tuple[int, int, float]:
+    """
+    Nakshatra lord + remaining balance fraction using minute precision
+    (consistent with get_nakshatra_and_pada).
+    """
+    total_minutes = round(moon_lon * 60)
+    nak_idx = (total_minutes // 800) % 27
+    lord_idx = nak_idx % 9
+    pos_in_nak = total_minutes % 800
+    remaining_frac = (800 - pos_in_nak) / 800.0
+    return nak_idx, lord_idx, remaining_frac
+
+
+def _vy_to_days(vy: float) -> float:
+    return vy * VIMSHOTTARI_DAYS_PER_YEAR
+
+
+def _add_vy(dt: datetime, vy: float) -> datetime:
+    return dt + timedelta(days=_vy_to_days(vy))
+
+
+def _sub_vy(dt: datetime, vy: float) -> datetime:
+    return dt - timedelta(days=_vy_to_days(vy))
+
+
+def _build_sub_periods(
+    parent_start: datetime,
+    parent_end: datetime,
+    parent_vy: float,
+    start_lord_idx: int,
+) -> list[dict]:
+    """Build 9 sub-periods (AD or PD) that exactly fill parent window."""
+    periods = []
+    current = parent_start
+    for i in range(9):
+        idx = (start_lord_idx + i) % 9
+        lord = DASHA_LORDS[idx]
+        if i == 8:
+            end = parent_end
+            dur_vy = (end - current).total_seconds() / (VIMSHOTTARI_DAYS_PER_YEAR * 86400)
+        else:
+            dur_vy = parent_vy * DASHA_YEARS[idx] / 120.0
+            end = _add_vy(current, dur_vy)
+        periods.append({
+            "lord": lord,
+            "start": current,
+            "end": end,
+            "duration_years": dur_vy,
+        })
+        current = end
+    return periods
+
+
+def _find_active(periods: list[dict], target_dt: datetime) -> dict:
+    for p in periods:
+        if p["start"] <= target_dt < p["end"]:
+            return p
+    return periods[-1] if periods else None
+
+
 def calculate_vimshottari_dasha(birth_dt, moon_lon, target_dt=None):
     """
-    Calculates Vimshottari Dasha periods.
-    birth_dt: datetime object of birth
-    moon_lon: Sidereal longitude of Moon
-    target_dt: datetime object to calculate dasha for (defaults to now)
+    Calculates Vimshottari Dasha periods (MD / AD / PD).
+    Uses 365.25-day Vimshottari years with timedelta (not relativedelta fractions).
     """
     if target_dt is None:
         target_dt = datetime.now()
 
-    # 1. Determine starting nakshatra and lord
-    nak_size = 360 / 27  # 13.333...
-    nak_idx = int(moon_lon / nak_size)
-    lord_idx = nak_idx % 9
-    
-    # 2. Calculate balance of first dasha
-    elapsed_in_nak = moon_lon % nak_size
-    remaining_perc = (nak_size - elapsed_in_nak) / nak_size
-    
-    first_lord_years = DASHA_YEARS[lord_idx]
-    remaining_years = first_lord_years * remaining_perc
-    
-    # Calculate start of the very first dasha (the one at birth)
-    # The first dasha started SOME time before birth
-    elapsed_years = first_lord_years * (elapsed_in_nak / nak_size)
-    # We'll use relativedelta for better calendar accuracy
-    # Note: Astrology traditionally uses 360-day years or 365.25. 
-    # relativedelta(years=...) is standard for modern interpretations.
-    first_dasha_start = birth_dt - relativedelta(years=int(elapsed_years), days=int((elapsed_years % 1) * 365.25))
-    
-    # 3. Build the Mahadasha timeline
+    _, lord_idx, remaining_frac = _nakshatra_balance(moon_lon)
+    first_lord_vy = DASHA_YEARS[lord_idx]
+    elapsed_vy = first_lord_vy * (1.0 - remaining_frac)
+    first_md_start = _sub_vy(birth_dt, elapsed_vy)
+
+    # Mahadasha timeline (2 full 120-year cycles)
     md_timeline = []
-    current_start = first_dasha_start
-    
-    # We need to cover at least 120 years from birth, plus some buffer
-    # Let's run for 2 cycles just in case (240 years)
+    current_start = first_md_start
     for cycle in range(2):
         for i in range(9):
             idx = (lord_idx + i + cycle * 9) % 9
             lord = DASHA_LORDS[idx]
-            years = DASHA_YEARS[idx]
-            end = current_start + relativedelta(years=years)
+            vy = DASHA_YEARS[idx]
+            end = _add_vy(current_start, vy)
             md_timeline.append({
                 "lord": lord,
                 "start": current_start,
                 "end": end,
-                "years": years
+                "years": vy,
             })
             current_start = end
 
-    # 4. Find current Mahadasha
-    current_md = None
-    for md in md_timeline:
-        if md['start'] <= target_dt < md['end']:
-            current_md = md
-            break
-            
+    current_md = _find_active(md_timeline, target_dt)
     if not current_md:
         return {"error": "Target date out of dasha range"}
 
-    # 5. Calculate Antardashas for current Mahadasha
-    ad_timeline = []
-    md_start = current_md['start']
-    md_total_years = current_md['years']
-    
-    # AD order starts from the MD lord itself
-    md_lord_idx = DASHA_LORDS.index(current_md['lord'])
-    curr_ad_start = md_start
-    for i in range(9):
-        idx = (md_lord_idx + i) % 9
-        ad_lord = DASHA_LORDS[idx]
-        ad_years = DASHA_YEARS[idx]
-        # AD length = (MD years * AD years) / 120
-        ad_duration_years = (md_total_years * ad_years) / 120
-        ad_end = curr_ad_start + relativedelta(years=int(ad_duration_years), days=int((ad_duration_years % 1) * 365.25))
-        ad_timeline.append({
-            "lord": ad_lord,
-            "start": curr_ad_start,
-            "end": ad_end,
-            "duration_years": ad_duration_years
-        })
-        curr_ad_start = ad_end
+    md_lord_idx = DASHA_LORDS.index(current_md["lord"])
+    ad_timeline = _build_sub_periods(
+        current_md["start"], current_md["end"], current_md["years"], md_lord_idx
+    )
+    current_ad = _find_active(ad_timeline, target_dt)
 
-    current_ad = next(ad for ad in ad_timeline if ad['start'] <= target_dt < ad['end'])
+    ad_lord_idx = DASHA_LORDS.index(current_ad["lord"])
+    pd_timeline = _build_sub_periods(
+        current_ad["start"], current_ad["end"], current_ad["duration_years"], ad_lord_idx
+    )
+    current_pd = _find_active(pd_timeline, target_dt)
 
-    # 6. Calculate Pratyantardashas for current Antardasha
-    pd_timeline = []
-    ad_start = current_ad['start']
-    ad_duration_years = current_ad['duration_years']
-    
-    ad_lord_idx = DASHA_LORDS.index(current_ad['lord'])
-    curr_pd_start = ad_start
-    for i in range(9):
-        idx = (ad_lord_idx + i) % 9
-        pd_lord = DASHA_LORDS[idx]
-        pd_years = DASHA_YEARS[idx]
-        # PD length = (AD duration * PD years) / 120
-        pd_duration_years = (ad_duration_years * pd_years) / 120
-        pd_end = curr_pd_start + relativedelta(years=int(pd_duration_years), days=int((pd_duration_years % 1) * 365.25))
-        pd_timeline.append({
-            "lord": pd_lord,
-            "start": curr_pd_start,
-            "end": pd_end
-        })
-        curr_pd_start = pd_end
-
-    current_pd = next(pd for pd in pd_timeline if pd['start'] <= target_dt < pd['end'])
-
-    # 7. Next 5 transitions (can be MD, AD or PD changes)
-    # For simplicity, we'll just track the next upcoming PD ends, 
-    # as every PD change is a transition.
+    # Upcoming transitions (next PD / AD / MD ends)
     all_pd_ends = []
-    # Collect PD ends for current AD and subsequent ADs
     found_current_md = False
     for md in md_timeline:
-        if md == current_md: found_current_md = True
-        if not found_current_md: continue
-        
-        # Calculate ADs for this MD
-        m_start = md['start']
-        m_years = md['years']
-        m_lord_idx = DASHA_LORDS.index(md['lord'])
-        c_ad_start = m_start
-        for i in range(9):
-            a_idx = (m_lord_idx + i) % 9
-            a_lord = DASHA_LORDS[a_idx]
-            a_years = DASHA_YEARS[a_idx]
-            a_dur = (m_years * a_years) / 120
-            c_ad_end = c_ad_start + relativedelta(years=int(a_dur), days=int((a_dur % 1) * 365.25))
-            
-            # Calculate PDs for this AD
-            c_pd_start = c_ad_start
-            for j in range(9):
-                p_idx = (a_idx + j) % 9
-                p_lord = DASHA_LORDS[p_idx]
-                p_years = DASHA_YEARS[p_idx]
-                p_dur = (a_dur * p_years) / 120
-                c_pd_end = c_pd_start + relativedelta(years=int(p_dur), days=int((p_dur % 1) * 365.25))
-                
-                if c_pd_end > target_dt:
-                    # Determine what type of transition this is
+        if md is current_md:
+            found_current_md = True
+        if not found_current_md:
+            continue
+        m_lord_idx = DASHA_LORDS.index(md["lord"])
+        ads = _build_sub_periods(md["start"], md["end"], md["years"], m_lord_idx)
+        for ad in ads:
+            a_idx = DASHA_LORDS.index(ad["lord"])
+            pds = _build_sub_periods(ad["start"], ad["end"], ad["duration_years"], a_idx)
+            for pd in pds:
+                if pd["end"] > target_dt:
                     trans_type = "Pratyantardasha"
-                    if c_pd_end == c_ad_end: trans_type = "Antardasha"
-                    if c_pd_end == md['end']: trans_type = "Mahadasha"
-                    
+                    if pd["end"] == ad["end"]:
+                        trans_type = "Antardasha"
+                    if pd["end"] == md["end"]:
+                        trans_type = "Mahadasha"
                     all_pd_ends.append({
-                        "date": c_pd_end,
-                        "to_lord": DASHA_LORDS[(p_idx + 1) % 9] if trans_type == "Pratyantardasha" else (DASHA_LORDS[(a_idx + 1) % 9] if trans_type == "Antardasha" else DASHA_LORDS[(m_lord_idx + 1) % 9]),
+                        "date": pd["end"],
                         "type": trans_type,
-                        "md": md['lord'],
-                        "ad": a_lord,
-                        "pd": p_lord
+                        "md": md["lord"],
+                        "ad": ad["lord"],
+                        "pd": pd["lord"],
                     })
-                c_pd_start = c_pd_end
-                if len(all_pd_ends) > 10: break
-            c_ad_start = c_ad_end
-            if len(all_pd_ends) > 10: break
-        if len(all_pd_ends) > 10: break
+                if len(all_pd_ends) > 10:
+                    break
+            if len(all_pd_ends) > 10:
+                break
+        if len(all_pd_ends) > 10:
+            break
 
-    # 8. Human readable summary
-    summary = f"Currently in {current_md['lord']} Mahadasha (ends {current_md['end'].strftime('%b %Y')}) > " \
-              f"{current_ad['lord']} Antardasha (ends {current_ad['end'].strftime('%b %Y')}) > " \
-              f"{current_pd['lord']} Pratyantardasha (ends {current_pd['end'].strftime('%b %d, %Y')})"
+    # Full hierarchical timeline (first 120-year cycle) with pratyantardashas
+    full_timeline = []
+    t_start = first_md_start
+    for i in range(9):
+        m_idx = (lord_idx + i) % 9
+        m_lord = DASHA_LORDS[m_idx]
+        m_vy = DASHA_YEARS[m_idx]
+        m_end = _add_vy(t_start, m_vy)
+        ads = _build_sub_periods(t_start, m_end, m_vy, m_idx)
+        ad_list = []
+        for ad in ads:
+            a_idx = DASHA_LORDS.index(ad["lord"])
+            pds = _build_sub_periods(ad["start"], ad["end"], ad["duration_years"], a_idx)
+            ad_list.append({
+                "lord": ad["lord"],
+                "start": ad["start"].strftime("%Y-%m-%d"),
+                "end": ad["end"].strftime("%Y-%m-%d"),
+                "pratyantardashas": [
+                    {
+                        "lord": p["lord"],
+                        "start": p["start"].strftime("%Y-%m-%d"),
+                        "end": p["end"].strftime("%Y-%m-%d"),
+                    }
+                    for p in pds
+                ],
+            })
+        full_timeline.append({
+            "lord": m_lord,
+            "start": t_start.strftime("%Y-%m-%d"),
+            "end": m_end.strftime("%Y-%m-%d"),
+            "antardashas": ad_list,
+        })
+        t_start = m_end
+
+    def _fmt_end(dt: datetime) -> str:
+        # Inclusive end date (last active day) for display
+        return (dt - timedelta(seconds=1)).strftime("%Y-%m-%d")
+
+    summary = (
+        f"Currently in {current_md['lord']} Mahadasha (ends {_fmt_end(current_md['end'])}) > "
+        f"{current_ad['lord']} Antardasha (ends {_fmt_end(current_ad['end'])}) > "
+        f"{current_pd['lord']} Pratyantardasha (ends {_fmt_end(current_pd['end'])})"
+    )
 
     return {
-        "current_mahadasha": current_md,
-        "current_antardasha": current_ad,
-        "current_pratyantardasha": current_pd,
+        "current_mahadasha": {
+            "lord": current_md["lord"],
+            "start": current_md["start"].isoformat(),
+            "end": current_md["end"].isoformat(),
+            "end_inclusive": _fmt_end(current_md["end"]),
+        },
+        "current_antardasha": {
+            "lord": current_ad["lord"],
+            "start": current_ad["start"].isoformat(),
+            "end": current_ad["end"].isoformat(),
+            "end_inclusive": _fmt_end(current_ad["end"]),
+        },
+        "current_pratyantardasha": {
+            "lord": current_pd["lord"],
+            "start": current_pd["start"].isoformat(),
+            "end": current_pd["end"].isoformat(),
+            "end_inclusive": _fmt_end(current_pd["end"]),
+        },
+        "pratyantardasha_timeline": [
+            {
+                "lord": p["lord"],
+                "start": p["start"].isoformat(),
+                "end": p["end"].isoformat(),
+                "end_inclusive": _fmt_end(p["end"]),
+            }
+            for p in pd_timeline
+        ],
         "upcoming_transitions": all_pd_ends[:5],
-        "summary": summary
+        "summary": summary,
+        "full_timeline": full_timeline,
+        "first_mahadasha_start": first_md_start.isoformat(),
     }
 
 import kerykeion as kr
@@ -199,11 +707,13 @@ from kerykeion import AstrologicalSubject
 
 # Load environment variables
 load_dotenv()
-GEONAMES_USER = os.getenv("GEONAMES_USERNAME", "himanshurajak_22")
+GEONAMES_USER = os.getenv("GEONAMES_USERNAME", "demo_user")
 
 
 def load_birth_data():
-    with open('config/birth_data.yaml', 'r') as f:
+    # Use path relative to this file
+    config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'birth_data.yaml')
+    with open(config_path, 'r') as f:
         data = yaml.safe_load(f)
         data['year'] = int(data['year'])
         data['month'] = int(data['month'])
@@ -222,6 +732,17 @@ def get_sky_on_date(year, month, day, hour=12, minute=0, city='Jabalpur', nation
         houses_system_identifier='W'
     )
     return subject
+
+def get_natal_chart_from_profile(profile: dict):
+    """Build kerykeion subject from a stored user profile."""
+    birth = profile["meta"]["birth"]
+    return get_sky_on_date(
+        birth["year"], birth["month"], birth["day"],
+        birth["hour"], birth["minute"],
+        birth["city"], birth["nation"],
+        profile["meta"].get("name", "Natal"),
+    )
+
 
 def get_natal_chart():
     bd = load_birth_data()

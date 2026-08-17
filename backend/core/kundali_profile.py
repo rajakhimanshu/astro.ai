@@ -1,7 +1,7 @@
 """
 core/kundali_profile.py
 ────────────────────────────────────────────────────
-Complete Kundali (Birth Chart) Profile — Himanshu Rajak
+Complete Kundali (Birth Chart) Profile — John Doe
 Source: VedicReport.pdf (AstroSage), cross-verified with kerykeion engine
 Born: 22 Aug 2006 | 9:37:29 AM IST | Jabalpur, MP, India
 Ayanamsha: Lahiri (Sidereal) | House System: Whole Sign
@@ -12,7 +12,7 @@ Lagna: Virgo 26°20'04" | Rashi: Cancer | Nakshatra: Ashlesha Pada 1
 # ─── COMPLETE STATIC NATAL PROFILE ───────────────────────────────────────────
 
 KUNDALI_PROFILE = {
-    "name": "Himanshu Rajak",
+    "name": "John Doe",
     "birth": {
         "date": "22 August 2006",
         "weekday": "Tuesday",
@@ -375,7 +375,7 @@ def get_full_kundali_text() -> str:
     p = KUNDALI_PROFILE
     lines = [
         "╔══════════════════════════════════════════════════════════════════════════════╗",
-        "║           COMPLETE NATAL CHART — HIMANSHU RAJAK (GROUND TRUTH)             ║",
+        "║           COMPLETE NATAL CHART — JOHN DOE (GROUND TRUTH)                   ║",
         "╚══════════════════════════════════════════════════════════════════════════════╝",
         f"Born: {p['birth']['date']}  |  Time: {p['birth']['time']}  |  {p['birth']['place']}",
         f"Ayanamsha: {p['birth']['ayanamsha']}  |  Day: {p['birth']['weekday']}  |  Tithi: {p['birth']['tithi']}",

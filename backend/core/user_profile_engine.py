@@ -28,6 +28,18 @@ import yaml
 import re
 import unicodedata
 from datetime import datetime
+
+def _fmt_dt(d, fmt='%b %Y'):
+    """Format a date that may be a datetime object or an ISO string."""
+    if isinstance(d, str):
+        try:
+            return datetime.fromisoformat(d).strftime(fmt)
+        except Exception:
+            return d[:7]  # fallback: return YYYY-MM portion
+    try:
+        return d.strftime(fmt)
+    except Exception:
+        return str(d)[:7]
 from pathlib import Path
 from typing import Optional
 from kerykeion import AstrologicalSubject
@@ -152,8 +164,10 @@ PLANET_REMEDIES = {
 # Paths
 # ─────────────────────────────────────────────────────────────────────────────
 
-USERS_DIR = Path("data/users")
-ACTIVE_USER_FILE = Path("data/active_user.txt")
+# Ensure we use a consistent data directory regardless of where the script is called from
+BASE_DIR = Path(__file__).resolve().parent.parent  # Points to 'backend/'
+USERS_DIR = BASE_DIR / "data" / "users"
+ACTIVE_USER_FILE = BASE_DIR / "data" / "active_user.txt"
 
 
 def _user_dir(user_id: str) -> Path:
@@ -357,10 +371,23 @@ def _compute_profile_from_kerykeion(birth_info: dict) -> dict:
     """
     Uses kerykeion + Swiss Ephemeris to compute the real natal chart,
     then enriches it with all 12 Jyotish layers.
+    Supports ground_truth.json override for verified precision.
     """
     load_dotenv()
+    user_id = _slugify(birth_info["name"])
+    udir = _user_dir(user_id)
+    gt_path = udir / "ground_truth.json"
+    ground_truth = {}
+    if gt_path.exists():
+        try:
+            with open(gt_path, "r", encoding="utf-8") as f:
+                ground_truth = json.load(f)
+                print(f"  [INFO] Ground truth found for {user_id}. Using for overrides.")
+        except Exception as e:
+            print(f"  [WARN] Failed to load ground truth for {user_id}: {e}")
 
-    geonames_user = os.getenv("GEONAMES_USERNAME", "himanshurajak_22")
+    geonames_user = os.getenv("GEONAMES_USERNAME", "demo_user")
+    # ... rest of kerykeion setup ...
 
     subject = AstrologicalSubject(
         birth_info["name"],
@@ -385,18 +412,73 @@ def _compute_profile_from_kerykeion(birth_info: dict) -> dict:
         "true_north_lunar_node": "Rahu", "true_south_lunar_node": "Ketu"
     }
 
-    house_map = {
-        "First_House": 1, "Second_House": 2, "Third_House": 3, "Fourth_House": 4,
-        "Fifth_House": 5, "Sixth_House": 6, "Seventh_House": 7, "Eighth_House": 8,
-        "Ninth_House": 9, "Tenth_House": 10, "Eleventh_House": 11, "Twelfth_House": 12
-    }
-
     lagna_abs = float(m.ascendant.abs_pos)
     lagna_sign = SIGNS[int(lagna_abs // 30) % 12]
+    lagna_lord = SIGN_LORDS.get(lagna_sign, "?")
     lagna_deg = lagna_abs % 30
     lagna_nak, lagna_pada = _get_nakshatra(lagna_abs)
 
+    from core.astro_engine import calculate_varga_position
+
+    # Supported divisions as requested
+    DIVISIONS = {
+        1: "Rashi", 2: "Hora", 3: "Drekkana", 4: "Chaturthamsa", 7: "Saptamsa",
+        9: "Navamsa", 10: "Dasamsa", 12: "Dwadasamsa", 16: "Shodasamsa",
+        20: "Vimsamsa", 24: "Chaturvimsamsa", 27: "Sapta-vimshamsa",
+        30: "Trimsamsa", 40: "Khavedamsa", 45: "Akshavedamsa", 60: "Shashtyamsa"
+    }
+
     planets = {}
+    divisional_charts = {str(d): {} for d in DIVISIONS.keys()}
+
+    def _compute_multi_chart_convergence(p_name: str, d1_dig: str, d9_sign_idx: int, d10_sign_idx: int) -> dict:
+        """
+        Computes the dignity gap and narrative across D1, D9, and D10.
+        """
+        d9_dig = _get_dignity(p_name, SIGNS[d9_sign_idx])
+        d10_dig = _get_dignity(p_name, SIGNS[d10_sign_idx])
+
+        def score_dig(d):
+            if d in ("Exalted", "Moolatrikona", "Own Sign", "Own"): return 3
+            if d in ("Friend", "Friendly"): return 2
+            if d in ("Neutral", "N/A"): return 1
+            return 0 # Enemy, Debilitated
+
+        s1 = score_dig(d1_dig)
+        s9 = score_dig(d9_dig)
+        s10 = score_dig(d10_dig)
+
+        is_d1_strong = s1 >= 2
+        is_d9_strong = s9 >= 2
+        is_d10_strong = s10 >= 2
+
+        if not is_d1_strong and is_d9_strong and is_d10_strong:
+            narrative = "Planet underperforms in surface personality but delivers powerfully at soul and career level. Person works harder than they appear to. Late recognition. Solid foundation."
+            score_label = "Strong (Hidden)"
+        elif is_d1_strong and not is_d9_strong and is_d10_strong:
+            narrative = "Planet expresses well in personality and career but soul-level purpose feels uncertain. Outward success that sometimes feels hollow inside."
+            score_label = "Mixed (Surface)"
+        elif is_d1_strong and is_d9_strong and not is_d10_strong:
+            narrative = "Planet is powerful personally and karmically but struggles to translate into professional outcomes. Potential that career structures don't fully capture."
+            score_label = "Mixed (Internal)"
+        elif not is_d1_strong and not is_d9_strong and not is_d10_strong:
+            narrative = "Planet is genuinely challenged across all levels. Be honest about this. Name the specific life areas this affects without softening it."
+            score_label = "Weak"
+        elif is_d1_strong and is_d9_strong and is_d10_strong:
+            narrative = "This is a cornerstone planet in this chart. Everything this planet touches tends to deliver. Name it as exceptional — don't understate it."
+            score_label = "Very Strong"
+        else:
+            narrative = "Planet has fluctuating support across physical, soul, and career dimensions. Requires conscious effort to align these layers."
+            score_label = "Fluctuating"
+
+        return {
+            "d1_dignity": d1_dig,
+            "d9_dignity": d9_dig,
+            "d10_dignity": d10_dig,
+            "score": score_label,
+            "narrative": narrative
+        }
+
     for key, name in PLANET_KEYS.items():
         p = getattr(m, key)
         abs_pos = float(p.abs_pos)
@@ -408,29 +490,75 @@ def _compute_profile_from_kerykeion(birth_info: dict) -> dict:
         nak_lord = NAKSHATRA_LORDS.get(nak, "?")
         retro = bool(p.retrograde)
 
-        # D9 / D10
-        d9_sign = _compute_d9_sign(sign, deg)
-        d10_sign = _compute_d10_sign(sign, deg)
-        d9_dignity = _get_dignity(name, d9_sign)
-        d10_dignity = _get_dignity(name, d10_sign)
-        vargottama = sign == d9_sign
+        # Compute all Vargas
+        vargas = {}
+        for d in DIVISIONS.keys():
+            v_pos = calculate_varga_position(abs_pos, d)
+            v_lagna_pos = calculate_varga_position(lagna_abs, d)
+            v_house = (v_pos['sign_idx'] - v_lagna_pos['sign_idx'] + 12) % 12 + 1
+            v_pos['house'] = v_house
+            vargas[str(d)] = v_pos
+            divisional_charts[str(d)][name] = v_pos
+
+        convergence = {}
+        if name not in ("ASC", "Rahu", "Ketu"):
+            convergence = _compute_multi_chart_convergence(
+                name, dignity, vargas['9']['sign_idx'], vargas['10']['sign_idx']
+            )
+
+        def get_d60_deity(sign_idx, deg):
+            """Simplified D60 Deity proxy for odd/even signs."""
+            part = int(deg / 0.5)
+            # 60 deities exist; as proxy, we categorize into benefic/malefic/mixed
+            is_odd = sign_idx % 2 == 0
+            if is_odd:
+                if part in [1, 2, 8, 9, 10, 11, 16, 30, 31, 32, 33, 34, 35, 39, 40, 42, 43, 44, 48, 51, 52, 59]:
+                    return "Kroora (Fierce/Malefic)"
+                return "Saumya (Gentle/Benefic)"
+            else:
+                # Reverse for even signs
+                if (59 - part) in [1, 2, 8, 9, 10, 11, 16, 30, 31, 32, 33, 34, 35, 39, 40, 42, 43, 44, 48, 51, 52, 59]:
+                    return "Kroora (Fierce/Malefic)"
+                return "Saumya (Gentle/Benefic)"
 
         planets[name] = {
             "sign": sign,
             "house": house,
             "degree": round(deg, 2),
             "abs_pos": round(abs_pos, 2),
+            "sign_idx": int(abs_pos // 30) % 12,
             "nakshatra": nak,
             "pada": pada,
             "nakshatra_lord": nak_lord,
             "dignity": dignity,
             "retrograde": retro,
-            "d9_sign": d9_sign,
-            "d9_dignity": d9_dignity,
-            "d10_sign": d10_sign,
-            "d10_dignity": d10_dignity,
-            "vargottama": vargottama,
+            "vargas": vargas,
+            "vargottama": sign == vargas['9']['sign'],
+            "convergence": convergence,
+            "d60_devata": get_d60_deity(int(abs_pos // 30) % 12, deg)
         }
+
+    # Add Lagna to planets for UI
+    planets['ASC'] = {
+        "sign": lagna_sign,
+        "sign_idx": SIGN_IDX[lagna_sign],
+        "degree": round(lagna_deg, 2),
+        "abs_pos": round(lagna_abs, 2),
+        "house": 1,
+        "nakshatra": lagna_nak,
+        "pada": lagna_pada,
+        "nakshatra_lord": NAKSHATRA_LORDS.get(lagna_nak, "?"),
+    }
+
+    # Add Lagna to Divisional Charts
+    for d in DIVISIONS.keys():
+        v_lagna_pos = calculate_varga_position(lagna_abs, d)
+        v_lagna_pos['house'] = 1
+        divisional_charts[str(d)]['ASC'] = v_lagna_pos
+
+    lagna_lord_house = planets.get(lagna_lord, {}).get("house", "?")
+    rashi_sign = planets.get("Moon", {}).get("sign", "?")
+    rashi_nak = planets.get("Moon", {}).get("nakshatra", "?")
 
     # ── Step 2: House map ────────────────────────────────────────────────────
     houses = {}
@@ -456,76 +584,213 @@ def _compute_profile_from_kerykeion(birth_info: dict) -> dict:
     # ── Step 3: Yogas ────────────────────────────────────────────────────────
     yogas = _detect_yogas(planets, lagna_sign)
 
-    # ── Step 4: Vimshottari Dasha ────────────────────────────────────────────
+    # ── Step 4: Vimshottari & Jaimini Chara Dasha ────────────────────────────
     birth_dt = datetime(int(birth_info["year"]), int(birth_info["month"]),
                         int(birth_info["day"]), int(birth_info["hour"]), int(birth_info["minute"]))
     moon_lon = planets["Moon"]["abs_pos"]
     dasha_info = calculate_vimshottari_dasha(birth_dt, moon_lon)
     dasha_summary = dasha_info.get("summary", "Dasha unavailable")
 
-    # ── Step 5: Ashtakavarga (approximated) ──────────────────────────────────
-    sav = _approximate_sav(lagna_sign, planets)
+    from core.jaimini_engine import calculate_chara_dasha
+    chara_dasha_info = calculate_chara_dasha(birth_dt, SIGN_IDX[lagna_sign], planets)
+
+
+    # ── Step 5: Ashtakavarga (Full Parashara Computation) ───────────────────
+    from core.ashtakavarga import calculate_ashtakavarga
+    av_data = calculate_ashtakavarga(subject)
+    sav = av_data["sarvashtakavarga"]
+    
+    # OVERRIDE SAV
+    if "ashtakavarga" in ground_truth:
+        gt_sav = ground_truth["ashtakavarga"].get("sarvashtakavarga")
+        if gt_sav:
+            # Handle string keys from JSON
+            sav = {int(k): v for k, v in gt_sav.items()}
+            av_data["sarvashtakavarga"] = sav
+            
+            # Map house-based SAV back to signs (sign_sav is 1-indexed Aries=1)
+            sign_sav = {}
+            for h, pts in sav.items():
+                s_idx = (SIGN_IDX[lagna_sign] + h - 1) % 12
+                sign_sav[s_idx + 1] = pts
+            av_data["sarvashtakavarga_by_sign"] = sign_sav
+            print(f"  [OVERRIDE] SAV points (House & Sign) applied.")
+    
+    # ── Step 6: Shadbala & Bhava Bala (High-Precision Calibration) ─────────
+    from core.shadbala_engine import calculate_shadbala_rupas, calculate_bhava_bala
+    shadbala_full = calculate_shadbala_rupas(subject)
+    bhava_bala = calculate_bhava_bala(subject)
+    
+    # OVERRIDE SHADBALA
+    if "shadbala" in ground_truth:
+        gt_shad = ground_truth["shadbala"].get("shadbala_full")
+        if gt_shad:
+            for p, data in gt_shad.items():
+                if p in shadbala_full:
+                    shadbala_full[p].update(data)
+            print(f"  [OVERRIDE] Shadbala Rupas applied.")
+
+    # OVERRIDE BHAVA BALA
+    if "bhava_bala" in ground_truth:
+        gt_bhava = ground_truth.get("bhava_bala")
+        if gt_bhava:
+            # Re-rank based on override values
+            temp_bhava = {int(k): v for k, v in gt_bhava.items()}
+            sorted_h = sorted(temp_bhava.items(), key=lambda x: -x[1]["rupas"])
+            rank_map = {h: i + 1 for i, (h, _) in enumerate(sorted_h)}
+            for h, data in temp_bhava.items():
+                data["rank"] = rank_map[h]
+                bhava_bala[h] = data
+            print(f"  [OVERRIDE] Bhava Bala Rupas applied.")
+
+    # Simple shadbala dict for other internal logic (using rupas)
+    shadbala = {p: data["rupas"] for p, data in shadbala_full.items()}
+
+    # Identify sign names for each house to show in UI
+    house_to_sign = {}
+    for h in range(1, 13):
+        s_idx = (SIGN_IDX[lagna_sign] + h - 1) % 12
+        house_to_sign[h] = SIGNS[s_idx]
+
+    # Find peak SAV house
+    peak_sav_h = max(sav, key=sav.get)
+    # Find peak Bhava Bala house
+    peak_bhava_h = max(bhava_bala, key=lambda x: bhava_bala[x]['rupas'])
+
     sav_interpretation = (
-        f"H11 is the strongest gains house (SAV={sav[11]}). "
-        f"H10 career: SAV={sav[10]}. "
-        f"H7 partnerships: SAV={sav[7]}. "
-        "Scores ≥30 = favourable transits | 25–29 = neutral | <25 = challenging."
+        f"H{peak_sav_h} ({house_to_sign[peak_sav_h]}) is the peak manifestation point (SAV={sav[peak_sav_h]}). "
+        f"H{peak_bhava_h} ({house_to_sign[peak_bhava_h]}) is the strongest house by absolute potency (Bhava Bala)."
     )
 
-    # ── Step 6: Shadbala approximation ───────────────────────────────────────
-    DIGBALA = {"Jupiter": 1, "Mercury": 1, "Moon": 4, "Venus": 4, "Saturn": 7, "Sun": 10, "Mars": 10}
-    dignity_score = {"Exalted": 5.0, "Own Sign": 4.0, "Moolatrikona": 3.5, "Neutral": 2.0, "Debilitated": 0.5, "N/A": 2.0}
+    # ── Step 7: Karakas (Jaimini System) ─────────────────────────────────────
+    from core.karaka_engine import calculate_chara_karakas, get_sthira_karakas
+    chara_karakas = calculate_chara_karakas(planets)
+    sthira_karakas = get_sthira_karakas()
 
-    shadbala = {}
-    for name, pd in planets.items():
-        d = dignity_score.get(pd["dignity"], 2.0)
-        best_h = DIGBALA.get(name, 0)
-        diff = abs(pd["house"] - best_h) if best_h else 6
-        diff = min(diff, 12 - diff)
-        dig = 2.0 if diff == 0 else (1.0 if diff <= 2 else 0.0)
-        chesta = 1.0 if pd["retrograde"] and name not in ("Rahu", "Ketu") else 0.0
-        # Neecha Bhanga bonus
-        if pd["dignity"] == "Debilitated":
-            deb_lord = SIGN_LORDS.get(DEBILITATION.get(name, ""), "")
-            if deb_lord and planets.get(deb_lord, {}).get("house", 0) in KENDRA:
-                d += 1.5
-        total = min(d + dig + chesta, 10.0)
-        shadbala[name] = round(total, 1)
+    # ── Step 8: Multi-Layered Remedial Engine ───────────────────────────────
+    from core.remedial_engine import RemedialEngine
+    # Find planets with shadbala rupas < 5.5
+    weak_planets = [p for p, data in shadbala_full.items() if data.get("rupas", 6) < 5.5]
+    if not weak_planets: weak_planets = ["Saturn", "Moon"]
 
-    # ── Step 7: Lagna Lord analysis ──────────────────────────────────────────
-    lagna_lord = SIGN_LORDS.get(lagna_sign, "?")
-    lagna_lord_house = planets.get(lagna_lord, {}).get("house", "?")
-    rashi_sign = planets.get("Moon", {}).get("sign", "?")
-    rashi_nak = planets.get("Moon", {}).get("nakshatra", "?")
+    rem_engine = RemedialEngine(birth_info)
+    structured_remedies = rem_engine.get_prescriptions(weak_planets[:3])
 
-    # ── Step 8: Remedy Library Integration ───────────────────────────────────
     remedies = []
-    # Identify weak planets from shadbala (score < 5.0)
-    for name, score in shadbala.items():
-        if score < 5.0 and name in PLANET_REMEDIES:
-            rem = PLANET_REMEDIES[name]
-            remedies.append({
-                "planet": name, "reason": f"Weak Shadbala ({score}/10)",
-                "mantra": rem['mantra'], "gemstone": rem['gemstone'], "charity": rem['charity']
-            })
-    
-    # Check Rahu/Ketu placements in difficult houses (6, 8, 12 or with Lagna/Moon)
-    for node in ["Rahu", "Ketu"]:
-        h = planets.get(node, {}).get("house", 0)
-        if h in [1, 6, 8, 12] or h == planets.get("Moon", {}).get("house", 0):
-            rem = PLANET_REMEDIES[node]
-            remedies.append({
-                "planet": node, "reason": f"Placed in sensitive H{h}",
-                "mantra": rem['mantra'], "gemstone": "Usually Avoided for Nodes", "charity": rem['charity']
-            })
+    for r in structured_remedies:
+        remedies.append({
+            "planet": r["planet"],
+            "reason": "Affliction / Lower Rupa Strength",
+            "mantra": r["spiritual"],
+            "gemstone": "Consult for specifics",
+            "charity": r["material"] + " | Behavioral: " + r["behavioral"]
+        })
 
     if not remedies:
+
         remedies.append({"planet": "General", "reason": "Well-balanced chart", "mantra": "Gayatri Mantra or Maha Mrityunjaya", "gemstone": "None required", "charity": "Regular food donations"})
 
+    # ── Step 9: Structured Aspects & Lordships for UI ───────────────────────
+    structured_aspects = []
+    PLANETS_LIST = ['Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn', 'Rahu', 'Ketu']
+    
+    for p_name in PLANETS_LIST:
+        if p_name not in planets: continue
+        h = planets[p_name]['house']
+        # 7th aspect
+        t7 = (h - 1 + 6) % 12 + 1
+        structured_aspects.append({"planet": p_name, "type": "7th", "target_house": t7})
+        
+        # Specials
+        if p_name == "Mars":
+            for off in [4, 8]:
+                structured_aspects.append({"planet": p_name, "type": f"{off}th", "target_house": (h - 1 + off - 1) % 12 + 1})
+        elif p_name == "Jupiter":
+            for off in [5, 9]:
+                structured_aspects.append({"planet": p_name, "type": f"{off}th", "target_house": (h - 1 + off - 1) % 12 + 1})
+        elif p_name == "Saturn":
+            for off in [3, 10]:
+                structured_aspects.append({"planet": p_name, "type": f"{off}th", "target_house": (h - 1 + off - 1) % 12 + 1})
+
+    # ── Step 10: Advanced Calculations ─────────────────────────────────────
+    from core.panchanga_engine import calculate_panchanga
+    from core.bhava_chalit import get_bhava_madhya, get_bhava_chalit_house
+    from core.jaimini_engine import calculate_all_arudhas
+    from core.graha_maitri import graha_maitri_score
+    from core.ishta_kashta import ishta_kashta_phala
+    from core.graha_avastha import get_graha_avastha
+    from core.dosha_engine import check_doshas
+
+    # 1. Birth Panchanga
+    from core.astro_engine import datetime_to_jd
+    birth_jd = datetime_to_jd(birth_dt)
+    panchanga = calculate_panchanga(birth_jd, birth_info["lat"] if "lat" in birth_info else 28.6, birth_info["lon"] if "lon" in birth_info else 77.2)
+
+    # 2. Bhava Chalit
+    bhava_madhyas = get_bhava_madhya(lagna_abs)
+    bhava_chalit = {}
+    for name, pd in planets.items():
+        if name == "ASC": continue
+        bhava_chalit[name] = get_bhava_chalit_house(pd["abs_pos"], bhava_madhyas)
+
+    # 3. Jaimini Arudhas
+    house_lords_map = {h: houses[h]["lord"] for h in range(1, 13)}
+    planet_houses_map = {name: pd["house"] for name, pd in planets.items()}
+    arudhas = calculate_all_arudhas(house_lords_map, planet_houses_map)
+
+    # 4. Planetary Relationships & Details
+    relationships = {}
+    planets_for_rel = [p for p in planets.keys() if p != "ASC"]
+    for p1 in planets_for_rel:
+        relationships[p1] = {}
+        for p2 in planets_for_rel:
+            if p1 == p2: continue
+            relationships[p1][p2] = graha_maitri_score(p1, p2, planet_houses_map)
+
+    # Enrich planets with Avastha and Ishta/Kashta
+    for name in planets_for_rel:
+        if name in ("Rahu", "Ketu"): continue
+        # Get Uccha and Chesta from shadbala_full
+        s_data = shadbala_full.get(name, {})
+        uccha = s_data.get("uccha", 30)
+        chesta = s_data.get("chesta", 30)
+        ik_phala = ishta_kashta_phala(uccha, chesta)
+        planets[name]["ishta_kashta"] = ik_phala
+        
+        avasthas = get_graha_avastha(name, planets[name]["abs_pos"], planets[name]["house"], planets[name]["retrograde"], planets[name]["dignity"])
+        planets[name]["avasthas"] = avasthas
+
+    # 5. Doshas
+    detected_doshas = check_doshas(planet_houses_map, house_lords_map, SIGN_IDX[lagna_sign])
+
     # Build the assembled profile
+    # ── Step 11: Real Astrologer Synthesis ─────────────────────────────────
+    from core.bhrigu_nadi import BhriguNadiEngine
+    from core.jaimini_padas import JaiminiPadaEngine
+    from core.tajika_engine import TajikaEngine
+    from core.karmic_engine import KarmicNarrativeEngine
+    from core.yogini_engine import get_yogini_dasha
+    
+    bhrigu = BhriguNadiEngine(subject, planets, SIGN_IDX[lagna_sign])
+    pada_engine = JaiminiPadaEngine()
+    tajika_engine = TajikaEngine(subject)
+    karmic_engine = KarmicNarrativeEngine(planets)
+    yogini_sequence = get_yogini_dasha(planets["Moon"]["abs_pos"], birth_dt)
+    
+    # Preserve lived experience if profile already exists
+    user_id = _slugify(birth_info["name"])
+    lived_experience = {}
+    old_p_path = _profile_path(user_id)
+    if old_p_path.exists():
+        try:
+            with open(old_p_path, "r", encoding="utf-8") as f:
+                old_p = json.load(f)
+                lived_experience = old_p.get("lived_experience", {})
+        except: pass
+
     profile = {
         "meta": {
-            "user_id": _slugify(birth_info["name"]),
+            "user_id": user_id,
             "name": birth_info["name"],
             "gender": birth_info.get("gender", ""),
             "birth": {
@@ -537,11 +802,18 @@ def _compute_profile_from_kerykeion(birth_info: dict) -> dict:
                 "city": birth_info["city"],
                 "nation": birth_info["nation"],
                 "timezone": birth_info.get("timezone", "UTC"),
+                "lat": float(getattr(subject, "lat", birth_info.get("lat", 0)) or 0),
+                "lon": float(getattr(subject, "lng", birth_info.get("lon", 0)) or 0),
             },
             "generated_at": datetime.now().isoformat(),
+            "rectification": birth_info.get("rectification", {
+                "confidence_label": "rectified" if birth_info.get("rectified") else "unverified",
+            }),
         },
+        "lived_experience": lived_experience,
         "lagna": {
             "sign": lagna_sign,
+            "sign_idx": SIGN_IDX[lagna_sign],
             "degree": round(lagna_deg, 2),
             "abs_pos": round(lagna_abs, 2),
             "nakshatra": lagna_nak,
@@ -554,20 +826,44 @@ def _compute_profile_from_kerykeion(birth_info: dict) -> dict:
             "nakshatra": rashi_nak,
         },
         "planets": planets,
+        "divisional_charts": divisional_charts,
         "houses": houses,
         "yogas": yogas,
+        "aspects": structured_aspects,
         "dasha": {
             "summary": dasha_summary,
             "current_md": dasha_info.get("current_mahadasha", {}).get("lord", "?"),
             "current_ad": dasha_info.get("current_antardasha", {}).get("lord", "?"),
             "current_pd": dasha_info.get("current_pratyantardasha", {}).get("lord", "?"),
+            "md_end": dasha_info.get("current_mahadasha", {}).get("end") if dasha_info.get("current_mahadasha") else "?",
+            "ad_end": dasha_info.get("current_antardasha", {}).get("end") if dasha_info.get("current_antardasha") else "?",
+            "pd_end": dasha_info.get("current_pratyantardasha", {}).get("end") if dasha_info.get("current_pratyantardasha") else "?",
+            "full_timeline": dasha_info.get("full_timeline", [])
         },
-        "ashtakvarga": {
+        "chara_dasha": chara_dasha_info,
+        "yogini_dasha": yogini_sequence,
+        "panchanga": panchanga,
+        "bhava_chalit": bhava_chalit,
+        "arudhas": arudhas,
+        "relationships": relationships,
+        "doshas": detected_doshas,
+        "ashtakavarga": {
             "sarvashtakavarga": sav,
+            "sarvashtakavarga_by_sign": av_data["sarvashtakavarga_by_sign"],
             "interpretation": sav_interpretation,
         },
         "shadbala": shadbala,
+        "shadbala_full": shadbala_full,
+        "bhava_bala": bhava_bala,
+        "karakas": {
+            "chara": chara_karakas,
+            "sthira": sthira_karakas
+        },
         "remedies": remedies,
+        "bhrigu_nadi": bhrigu.get_full_report(),
+        "micro_timing": pada_engine.get_current_pada_snapshot(),
+        "tajika": tajika_engine.get_varshaphal(datetime.now().year),
+        "karmic_story": karmic_engine.get_soul_story()
     }
 
     return profile
@@ -588,19 +884,24 @@ def create_user_profile(birth_info: dict) -> str:
     udir.mkdir(parents=True, exist_ok=True)
 
     # Save raw birth data
-    with open(_birth_path(user_id), "w") as f:
-        yaml.dump({
-            "name": birth_info["name"],
-            "gender": birth_info.get("gender", ""),
-            "year": int(birth_info["year"]),
-            "month": int(birth_info["month"]),
-            "day": int(birth_info["day"]),
-            "hour": int(birth_info["hour"]),
-            "minute": int(birth_info["minute"]),
-            "city": birth_info["city"],
-            "nation": birth_info["nation"],
-            "Timezone": birth_info.get("timezone", "UTC"),
-        }, f, default_flow_style=False)
+    birth_save = {
+        "name": birth_info["name"],
+        "gender": birth_info.get("gender", ""),
+        "year": int(birth_info["year"]),
+        "month": int(birth_info["month"]),
+        "day": int(birth_info["day"]),
+        "hour": int(birth_info["hour"]),
+        "minute": int(birth_info["minute"]),
+        "city": birth_info["city"],
+        "nation": birth_info["nation"],
+        "Timezone": birth_info.get("timezone", "UTC"),
+    }
+    if birth_info.get("rectification"):
+        birth_save["rectification"] = birth_info["rectification"]
+        birth_save["rectified"] = birth_info.get("rectified", True)
+
+    with open(_birth_path(user_id), "w", encoding="utf-8") as f:
+        yaml.dump(birth_save, f, default_flow_style=False)
 
     # Compute the profile
     profile = _compute_profile_from_kerykeion(birth_info)
@@ -613,13 +914,64 @@ def create_user_profile(birth_info: dict) -> str:
     return user_id
 
 
+def refresh_live_dasha(profile: dict) -> dict:
+    """Recompute Vimshottari MD/AD/PD from current date (never serve stale dasha from JSON)."""
+    birth = profile["meta"]["birth"]
+    birth_dt = datetime(
+        int(birth["year"]), int(birth["month"]), int(birth["day"]),
+        int(birth["hour"]), int(birth["minute"]),
+        int(birth.get("second", 0)),
+    )
+    moon_lon = profile["planets"]["Moon"]["abs_pos"]
+    dasha_info = calculate_vimshottari_dasha(birth_dt, moon_lon)
+    if dasha_info.get("error"):
+        return profile
+    md = dasha_info["current_mahadasha"]
+    ad = dasha_info["current_antardasha"]
+    pd = dasha_info["current_pratyantardasha"]
+    profile["dasha"] = {
+        "summary": dasha_info.get("summary", ""),
+        "current_md": md.get("lord", "?"),
+        "current_ad": ad.get("lord", "?"),
+        "current_pd": pd.get("lord", "?"),
+        "md_end": md.get("end"),
+        "ad_end": ad.get("end"),
+        "pd_end": pd.get("end"),
+        "md_end_display": md.get("end_inclusive"),
+        "ad_end_display": ad.get("end_inclusive"),
+        "pd_end_display": pd.get("end_inclusive"),
+        "md_start": md.get("start"),
+        "ad_start": ad.get("start"),
+        "pd_start": pd.get("start"),
+        "full_timeline": dasha_info.get("full_timeline", []),
+        "pratyantardasha_timeline": dasha_info.get("pratyantardasha_timeline", []),
+        "computed_at": datetime.now().isoformat(),
+    }
+    return profile
+
+
 def load_user_profile(user_id: str) -> dict:
     """Loads profile.json for the given user_id. Raises FileNotFoundError if missing."""
     p = _profile_path(user_id)
     if not p.exists():
         raise FileNotFoundError(f"No profile found for user '{user_id}'. Create one first.")
+    
     with open(p, "r", encoding="utf-8") as f:
-        return json.load(f)
+        profile = json.load(f)
+        
+    # AUTO-UPGRADE: Re-compute if divisional charts or other new layers are missing
+    if "divisional_charts" not in profile or "panchanga" not in profile:
+        print(f"  [AUTO-UPGRADE] Profile {user_id} missing new data layers. Re-computing...")
+        bpath = _birth_path(user_id)
+        if bpath.exists():
+            with open(bpath, 'r') as bf:
+                birth_info = yaml.safe_load(bf)
+                new_profile = _compute_profile_from_kerykeion(birth_info)
+                with open(p, "w", encoding="utf-8") as f:
+                    json.dump(new_profile, f, indent=2, ensure_ascii=False, default=str)
+                return refresh_live_dasha(new_profile)
+
+    return refresh_live_dasha(profile)
 
 
 def list_users() -> list[dict]:
@@ -662,6 +1014,40 @@ def set_active_user(user_id: str) -> None:
     ACTIVE_USER_FILE.write_text(user_id)
 
 
+def update_lived_experience(user_id: str, data: dict) -> None:
+    """
+    Updates the qualitative user context in the profile.
+    data can contain: profession, struggles, goals, life_events, emotional_tone
+    """
+    p_path = _profile_path(user_id)
+    if not p_path.exists():
+        return
+    
+    with open(p_path, "r", encoding="utf-8") as f:
+        p = json.load(f)
+        
+    if "lived_experience" not in p:
+        p["lived_experience"] = {}
+        
+    # Deep update or merge
+    for key, val in data.items():
+        if isinstance(val, list):
+            existing = p["lived_experience"].get(key)
+            if not isinstance(existing, list):
+                p["lived_experience"][key] = [existing] if existing else []
+            p["lived_experience"][key].extend(val)
+        elif isinstance(val, dict):
+            existing = p["lived_experience"].get(key)
+            if not isinstance(existing, dict):
+                p["lived_experience"][key] = {}
+            p["lived_experience"][key].update(val)
+        else:
+            p["lived_experience"][key] = val
+            
+    with open(p_path, "w", encoding="utf-8") as f:
+        json.dump(p, f, indent=2, ensure_ascii=False, default=str)
+
+
 def get_active_profile() -> dict:
     """Returns the profile dict for the currently active user."""
     uid = get_active_user_id()
@@ -682,16 +1068,24 @@ def profile_to_context_text(profile: dict) -> str:
     houses = profile["houses"]
     yogas = profile["yogas"]
     dasha = profile["dasha"]
-    sav = profile["ashtakvarga"]["sarvashtakavarga"]
+    sav = profile["ashtakavarga"]["sarvashtakavarga"]
     shadbala = profile["shadbala"]
     remedies = profile.get("remedies", [])
 
     birth = meta["birth"]
+    lived = profile.get("lived_experience", {})
     lines = [
         f"╔══════════════════════════════════════════════════════════════════════════════╗",
         f"║  USER: {meta['name']:40}                        ║",
         f"║  Born: {birth['year']}-{birth['month']:02d}-{birth['day']:02d} {birth['hour']:02d}:{birth['minute']:02d} | {birth['city']}, {birth['nation']}    ║",
         f"╚══════════════════════════════════════════════════════════════════════════════╝",
+        "",
+        "━━━ LIVED EXPERIENCE (Qualitative Context) ━━━",
+        f"  Current Work/Projects: {lived.get('profession', 'Not shared yet')}",
+        f"  Active Struggles:      {lived.get('struggles', 'Not shared yet')}",
+        f"  Goals/Ambitions:      {lived.get('goals', 'Not shared yet')}",
+        f"  Significant Events:    {lived.get('life_events', 'Not shared yet')}",
+        f"  Emotional Signature:   {lived.get('emotional_tone', 'Not shared yet')}",
         "",
         f"LAGNA: {lagna['sign']} {lagna['degree']:.1f}° | Nakshatra: {lagna['nakshatra']} Pada {lagna['pada']}",
         f"RASHI: {rashi['sign']} | Moon Nakshatra: {rashi['nakshatra']}",
@@ -701,11 +1095,15 @@ def profile_to_context_text(profile: dict) -> str:
     ]
 
     for name, pd in planets.items():
-        retro = " ®" if pd["retrograde"] else ""
-        varg = " ★VARG" if pd["vargottama"] else ""
+        if name == "ASC": continue
+        retro = " ®" if pd.get("retrograde") else ""
+        varg = " ★VARG" if pd.get("vargottama") else ""
+        d60 = f" [D60: {pd.get('d60_devata', '?')}]"
+        conv = pd.get("convergence", {})
+        conv_str = f" | Convergence: {conv.get('score', '')} -> {conv.get('narrative', '')}" if conv else ""
         lines.append(
             f"  {name:10} H{pd['house']:<2} {pd['sign']:14} {pd['nakshatra']:22} Pada {pd['pada']} | "
-            f"Dignity: {pd['dignity']:12} | Nak Lord: {pd['nakshatra_lord']}{retro}{varg}"
+            f"Dignity: {pd['dignity']:12} | Nak Lord: {pd['nakshatra_lord']}{retro}{varg}{d60}{conv_str}"
         )
 
     lines += ["", "━━━ HOUSE SUMMARY (Layer 3) ━━━"]
@@ -724,13 +1122,32 @@ def profile_to_context_text(profile: dict) -> str:
     lines += ["", "━━━ VIMSHOTTARI DASHA (Layer 6) ━━━",
               f"  {dasha['summary']}",
               f"  Current: {dasha['current_md']} MD → {dasha['current_ad']} AD → {dasha['current_pd']} PD"]
+              
+    chara = profile.get("chara_dasha", {})
+    if chara and chara.get("current_md"):
+        cmd = chara["current_md"]
+        lines += ["", "━━━ JAIMINI CHARA DASHA (Dual-Clock Layer) ━━━",
+                  f"  Current Mahadasha: {cmd['sign']} ({cmd['years']} years) | {_fmt_dt(cmd['start'])} to {_fmt_dt(cmd['end'])}"]
 
-    lines += ["", "━━━ DIVISIONAL CHARTS (Layer 8) ━━━"]
-    for name, pd in planets.items():
-        v = " ★VARGOTTAMA" if pd["vargottama"] else ""
-        lines.append(
-            f"  {name:10} D1: {pd['sign']:14} D9: {pd['d9_sign']:14}({pd['d9_dignity']}) | D10: {pd['d10_sign']:14}({pd['d10_dignity']}){v}"
-        )
+    lines += ["", "━━━ DIVISIONAL CHARTS (Layer 6) ━━━"]
+    DIV_NAMES = {
+        "1": "D1 Rashi", "2": "D2 Hora", "3": "D3 Drekkana", "4": "D4 Chaturthamsa", "7": "D7 Saptamsa",
+        "9": "D9 Navamsa", "10": "D10 Dasamsa", "12": "D12 Dwadasamsa", "16": "D16 Shodasamsa",
+        "20": "D20 Vimsamsa", "24": "D24 Chaturvimsamsa", "27": "D27 Sapta-vimshamsa",
+        "30": "D30 Trimsamsa", "40": "D40 Khavedamsa", "45": "D45 Akshavedamsa", "60": "D60 Shashtyamsa"
+    }
+    
+    div_charts = profile.get("divisional_charts", {})
+    for d_code, d_name in DIV_NAMES.items():
+        if d_code in div_charts:
+            lines.append(f"\n  [{d_name}]")
+            d_data = div_charts[d_code]
+            # Order Lagna first
+            p_names = ['ASC', 'Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn', 'Rahu', 'Ketu']
+            for p_name in p_names:
+                if p_name in d_data:
+                    pos = d_data[p_name]
+                    lines.append(f"    {p_name:8} : {pos['sign']:14} (House {pos['house']})")
 
     lines += ["", "━━━ SHADBALA — STRENGTH SCORES (Layer 9) ━━━"]
     for name, score in shadbala.items():
@@ -741,7 +1158,7 @@ def profile_to_context_text(profile: dict) -> str:
               "  H:   " + "  ".join(f"{h:2}" for h in range(1, 13)),
               "  SAV: " + "  ".join(f"{sav.get(h, sav.get(str(h), 0)):2}" for h in range(1, 13)),
               "  Key: ≥30=Favourable | 25-29=Neutral | <25=Challenging",
-              f"  {profile['ashtakvarga']['interpretation']}"]
+              f"  {profile['ashtakavarga']['interpretation']}"]
 
     lines += ["", "━━━ RECOMMENDED REMEDIES (Based on Weak/Afflicted Planets) ━━━"]
     for rem in remedies:
@@ -754,12 +1171,12 @@ def profile_to_context_text(profile: dict) -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Migration helper — wrap Himanshu's hardcoded profile into JSON format
+# Migration helper — wrap Demo User's hardcoded profile into JSON format
 # ─────────────────────────────────────────────────────────────────────────────
 
-def migrate_himanshu_from_yaml():
+def migrate_demo_from_yaml():
     """
-    Seeds Himanshu's profile from the existing config/birth_data.yaml
+    Seeds the demo profile from the existing config/birth_data.yaml
     by running the full kerykeion computation. Run once.
     """
     yaml_path = Path("config/birth_data.yaml")
@@ -780,8 +1197,8 @@ def migrate_himanshu_from_yaml():
 
 
 if __name__ == "__main__":
-    print("Migrating Himanshu's profile from yaml...")
-    uid = migrate_himanshu_from_yaml()
+    print("Migrating Demo profile from yaml...")
+    uid = migrate_demo_from_yaml()
     print(f"Done. user_id = {uid}")
     p = load_user_profile(uid)
     print(profile_to_context_text(p)[:1000])
