@@ -15,12 +15,14 @@ Astro.AI is an advanced, high-precision Vedic astrology oracle. Built with a rob
 - `/backend` - The core AI, astronomical calculation engine, and FastAPI server.
 - `/frontend` - The user-facing Next.js dashboard providing rich visualization and interactive Q&A.
 - `/docs` - System architecture, knowledge bases, and project status details.
+- `ENG_DEPTH.md` - Comprehensive engineering and architectural overview of the system.
 
 ## Getting Started
 
 ### Prerequisites
 - Python 3.9+
 - Node.js 18+
+- A free [Geonames](http://www.geonames.org/) account for geolocation parsing.
 
 ### Backend Setup
 1. Navigate to the `backend` directory.
@@ -28,11 +30,21 @@ Astro.AI is an advanced, high-precision Vedic astrology oracle. Built with a rob
    ```bash
    pip install -r requirements.txt
    ```
-3. Run the API:
+3. Set up your environment variables:
+   Create a `.env` file in the `backend` directory and add your Geonames username:
+   ```env
+   GEONAMES_USERNAME=your_username_here
+   # Add your LLM API Keys (e.g., OPENAI_API_KEY) here as well.
+   ```
+4. Configure Birth Data:
+   Update `backend/config/birth_data.yaml` with your birth details to generate your profile.
+5. Run the API:
    ```bash
    python main.py
    ```
-   The backend will be available at `http://0.0.0.0:8000`.
+   The backend will be available at `http://0.0.0.0:8001`.
+
+See `ENG_DEPTH.md` and `docs/ACCURACY_STACK.md` for details on the prediction-learning pipeline.
 
 ### Frontend Setup
 1. Navigate to the `frontend` directory.
@@ -48,4 +60,4 @@ Astro.AI is an advanced, high-precision Vedic astrology oracle. Built with a rob
 
 ## License
 
-This project is proprietary.
+This project is licensed under the MIT License - see the LICENSE file for details.
