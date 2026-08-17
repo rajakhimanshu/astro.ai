@@ -9,8 +9,8 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: 'Astro.AI | Premium Oracle',
-  description: 'Your personal AI Astrologer built upon massive classical context.',
+  title: 'Jyotish Oracle | Astro.AI',
+  description: 'Your personal AI Jyotish Astrologer — classical Vedic wisdom powered by precision computation.',
 };
 
 export default function RootLayout({
@@ -19,8 +19,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${outfit.variable} antialiased text-white min-h-screen overflow-hidden`}>
+    <html lang="en" className="h-full">
+      <body className={`${outfit.variable} antialiased h-full overflow-hidden`}>
         {children}
       </body>
     </html>
