@@ -188,7 +188,10 @@ def build_consultation_brief(
         forbidden = [f for f in forbidden if f != "Marriage month/year promises"]
         if precision == "themes_only":
             precision = "broad_window"
-        timing_rule += " FUTURE: quote only the TIMING WINDOWS ranges."
+        timing_rule += (
+            " FUTURE: quote only the TIMING WINDOWS ranges exactly as listed (they override the"
+            " 3–6 month limit). Lead with window #1 (strongest), then mention the others by confidence."
+        )
 
     forecast_block = None
     forecast_text = ""

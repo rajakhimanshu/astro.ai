@@ -744,7 +744,7 @@ export default function Page() {
                             <div className="flex-1 p-10 md:p-16 space-y-12 pb-32">{messages.map((m: any, i: number) => (
                                     <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                         {m.role === 'bot' && <div className="w-10 h-10 mr-5 rounded-full border border-ink-900/10 dark:border-white/10 flex items-center justify-center shrink-0 mt-1 bg-white dark:bg-zinc-900 shadow-sm"><Compass className="w-5 h-5 text-terracotta" /></div>}
-                                        <div className={`p-7 text-[16px] leading-[1.8] max-w-[85%] whitespace-pre-wrap shadow-sm rounded-2xl ${m.role === 'user' ? 'bg-ink-900 dark:bg-zinc-800 border border-ink-900 dark:border-zinc-700 text-white font-medium rounded-tr-sm shadow-md' : 'bg-white dark:bg-zinc-900/60 border border-ink-900/10 dark:border-white/10 text-ink-800 dark:text-ink-900 font-medium'}`}>{m.content}</div>
+                                        <div className={`p-7 text-[16px] leading-[1.8] max-w-[85%] whitespace-pre-wrap shadow-sm rounded-2xl ${m.role === 'user' ? 'bg-ink-900 dark:bg-zinc-800 border border-ink-900 dark:border-zinc-700 text-white font-medium rounded-tr-sm shadow-md' : 'bg-white dark:bg-zinc-900/60 border border-ink-900/10 dark:border-white/10 text-ink-800 dark:text-ink-900 font-medium'}`}>{String(m.content).split(/\*\*(.+?)\*\*/g).map((part: string, j: number) => j % 2 ? <strong key={j} className="font-bold">{part}</strong> : part)}</div>
                                     </div>
                                 ))}<div ref={messagesEndRef} className="h-8" /></div>
                             )}
