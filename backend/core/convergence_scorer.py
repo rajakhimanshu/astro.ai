@@ -79,11 +79,23 @@ TOPIC_MAP = {
 }
 
 KARAKA_HOUSES = {
-    "career": ["career", "job", "work", "business", "promotion", "profession"],
-    "wealth": ["money", "wealth", "finance", "income", "investment"],
-    "marriage": ["marriage", "love", "spouse", "relationship", "partner"],
-    "health": ["health", "illness", "disease", "body"],
-    "education": ["education", "study", "exam", "degree"],
+    "career": [
+        "career", "job", "naukri", "work", "business", "promotion",
+        "profession", "internship", "intern", "startup", "launch", "platform",
+        "firm",
+    ],
+    "wealth": ["money", "wealth", "finance", "income", "investment", "trading", "profit"],
+    "marriage": [
+        "marriage", "love", "spouse", "relationship", "partner", "girlfriend",
+        "boyfriend", "girl", "propose", "proposal", "rejected", "crush",
+        "feelings", "dating", "vivah", "shaadi",
+    ],
+    "health": ["health", "illness", "disease", "body", "fitness"],
+    "education": [
+        "education", "study", "exam", "degree", "semester", "college",
+        "backlog", "supplementary", " sem ",
+        "paper", "will i pass", "pass or not", "graduat",
+    ],
     "children": ["child", "children", "pregnancy", "baby"],
     "spiritual": ["spiritual", "meditation", "moksha", "guru"],
     "forecast": ["when will", "next year", "future", "forecast", "predict", "upcoming"],
@@ -92,10 +104,19 @@ KARAKA_HOUSES = {
 
 def detect_topic(question: str) -> str:
     q = question.lower()
+    scores = {}
     for topic, keywords in KARAKA_HOUSES.items():
-        if any(k in q for k in keywords):
-            return topic
-    return "general"
+        hits = sum(1 for k in keywords if k in q)
+        if hits:
+            scores[topic] = hits
+    if not scores:
+        return "general"
+    # Relationship stories often mention college/sem — prefer marriage when love facts are present
+    if scores.get("marriage") and any(
+        k in q for k in ("girl", "propose", "rejected", "crush", "feelings", "love")
+    ):
+        return "marriage"
+    return max(scores, key=scores.get)
 
 
 def _lord_of_house(lagna_sign: str, house: int) -> str:

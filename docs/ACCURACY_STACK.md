@@ -45,6 +45,9 @@ Open `http://localhost:3000` — API points to `http://127.0.0.1:8001/api`.
 
 ## API endpoints
 
+- `GET /api/users/{id}/consultation/brief?question=...` — **engine-first brief** (same data injected into chat)
+- `GET /api/users/{id}/conversations` — recent consultation turns (learning memory)
+- `GET /api/users/{id}/forecast?horizon=today|30d|1y|5y|life|all` — **structured horizon forecasts**
 - `GET /api/users/{id}/convergence?question=...`
 - `GET /api/users/{id}/gochara?question=...`
 - `GET /api/users/{id}/kakshya`
@@ -52,6 +55,18 @@ Open `http://localhost:3000` — API points to `http://127.0.0.1:8001/api`.
 - `GET /api/users/{id}/predictions`
 - `POST /api/users/{id}/predictions/{id}/verify` — body: `{ "happened": true }`
 - `GET /api/users/{id}/accuracy`
+
+### Horizon forecast product
+
+| Horizon | Sources | Precision |
+|---------|---------|-----------|
+| **today** | PD + Tarabala/Chandrabala + kakshya + Moon house | Daily quality |
+| **30d** | Week buckets + muhurta scan + PD shifts | Week windows |
+| **1y** | Month grid + AD changes + Ju/Sa SAV + Muntha | Month themes |
+| **5y** | MD/AD phases + Jupiter/Saturn signs | Year phases only |
+| **life** | Yogas, D9/D10, karakas, topic convergence | Natal thesis |
+
+UI: **Forecast** tab. Chat also injects the matching horizon when you ask about today / 30 days / year / 5 years / life.
 
 ## Oracle Cloud (optional, free tier)
 

@@ -383,11 +383,8 @@ def calculate_shadbala_rupas(subject) -> dict:
     m = subject.model()
     PKEYS = {'sun':'Sun','moon':'Moon','mars':'Mars','mercury':'Mercury',
              'jupiter':'Jupiter','venus':'Venus','saturn':'Saturn'}
-    try:
-        yr=subject.year;mo=subject.month;dy=subject.day
-        hr=subject.hour;mn=subject.minute;lat=subject.lat;lng=subject.lng
-    except Exception:
-        yr,mo,dy,hr,mn,lat,lng=1990,1,1,12,0,28.61,77.21
+    yr=subject.year;mo=subject.month;dy=subject.day
+    hr=subject.hour;mn=subject.minute;lat=subject.lat;lng=subject.lng
 
     birth_dt=datetime(yr,mo,dy,hr,mn)
     wd_sun=(birth_dt.weekday()+1)%7  # Sun=0

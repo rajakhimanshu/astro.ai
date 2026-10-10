@@ -67,7 +67,7 @@ def _normalize_domain(domain: str) -> str:
 
 def _build_subject(birth_info: dict, hour: int, minute: int) -> AstrologicalSubject:
     load_dotenv()
-    geonames_user = os.getenv("GEONAMES_USERNAME", "demo_user")
+    geonames_user = os.getenv("GEONAMES_USERNAME") or None
     return AstrologicalSubject(
         birth_info["name"],
         int(birth_info["year"]),

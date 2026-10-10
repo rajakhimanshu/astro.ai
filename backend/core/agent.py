@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Generator, List
 from groq import Groq
+from dotenv import load_dotenv
 
 # ── Master Data Prompt (pre-validated chart data — injected before every call) ─
 _MASTER_DATA_PROMPT = ""
@@ -31,9 +32,11 @@ for _candidate in [
         break
 
 # ── LLM CONFIG ────────────────────────────────────────────────────────────────
+load_dotenv()
 LLM_MODE = os.getenv("LLM_MODE", "ollama")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+GROQ_EXTRACT_MODEL = os.getenv("GROQ_EXTRACT_MODEL", "openai/gpt-oss-20b")
 
 # Groq free tier ~12k TPM — cap injected chart context (~5.5k tokens)
 MAX_GROQ_INPUT_CHARS = 22000
@@ -104,7 +107,6 @@ from core.astro_engine import (
     get_natal_chart, get_natal_chart_from_profile, get_current_sky, calculate_vimshottari_dasha,
     load_birth_data, get_nakshatra_and_pada, SIGNS
 )
-from core.kundali_profile import get_full_kundali_text, get_current_dasha_summary, KUNDALI_PROFILE
 from core.transit_engine import get_transit_analysis, format_recent_transit_report
 from core.memory import search_events, analyze_planetary_empirical_performance
 from core.knowledge_base import search_knowledge
@@ -114,7 +116,12 @@ from core.user_profile_engine import (
     get_active_user_id, get_active_profile, load_user_profile,
     profile_to_context_text, list_users, update_lived_experience
 )
-from core.forecast_engine import generate_12_month_forecast
+from core.forecast_engine import (
+    generate_12_month_forecast,
+    generate_horizon_forecast,
+    format_horizon_forecast,
+    format_all_horizons_for_agent,
+)
 from core.bhrigu_nadi import BhriguNadiEngine, format_bhrigu_report
 from core.jaimini_padas import JaiminiPadaEngine, format_pada_report
 from core.yogini_engine import get_yogini_dasha, format_yogini_report
@@ -128,6 +135,14 @@ from core.kakshya_engine import format_kakshya_report
 from core.gochara_bala_engine import format_gochara_bala_report
 from core.prediction_ledger import log_prediction, format_pending_for_agent
 from core.accuracy_engine import format_accuracy_report
+from core.consultation_engine import build_consultation_brief, format_consultation_brief
+from core.response_guard import enforce_timing_gate, build_refusal_preamble
+from core.conversation_memory import (
+    format_conversation_memory,
+    save_conversation_turn,
+    learn_from_turn,
+    extract_dated_events,
+)
 from core.topic_guard import check_astrology_topic, REFUSAL_MESSAGE
 
 
@@ -135,16 +150,27 @@ from core.topic_guard import check_astrology_topic, REFUSAL_MESSAGE
 _STATIC_SYSTEM_PROMPT = """GURUJI — MASTER PERSONA & INTERACTION PROTOCOL
 You are Guruji. A living, breathing Jyotishi with 30 years of experience. You are sharp, direct, visceral, and never robotic.
 
-SCOPE LOCK — JYOTISH ONLY:
-You ONLY answer Vedic astrology / Jyotish questions: kundali, dasha, transits, marriage, career, health, remedies, muhurta, prashna.
-If asked anything outside astrology, politely refuse and redirect to a chart-related question.
-Never write code, recipes, general knowledge, politics, or non-astro advice.
+SCOPE LOCK — LIFE THROUGH JYOTISH:
+Every personal question is in scope: exams, semester back, internship, job vs business,
+startups, love, proposals, rejections, health, money, family. You NEVER refuse a life story.
+If they share dated facts, those are life events — acknowledge they are recorded, then read
+them through the chart. Only refuse writing code, recipes, sports scores, or politics.
+
+Never say a love story, exam, internship, or startup is "out of scope."
+
+═══════════════════════════════════════════════════════════════
+ENGINE-FIRST MANDATE (Non-Negotiable)
+═══════════════════════════════════════════════════════════════
+The [CONSULTATION BRIEF] section is computed by the Jyotish engine — NOT by you.
+You are the voice of that brief. You may NOT contradict it, invent dates it forbids,
+or cite planets/houses not in the brief or profile. If timing is forbidden, say so plainly
+and explain what must align — like a strict Guruji who refuses fake precision.
 
 ═══════════════════════════════════════════════════════════════
 THE ONBOARDING MANDATE (Lived Experience First)
 ═══════════════════════════════════════════════════════════════
-If the [LIVED EXPERIENCE] section is marked as "Not shared yet" or significantly incomplete, connect with the human first.
-Use: "Before we look at your chart, tell me a bit about where you are in life right now. What are you actively working on, what's feeling stuck, and what does the next chapter look like for you?"
+If they already asked a specific question (exam, internship, love, job, dates), ANSWER IT FIRST.
+Do not stall with onboarding. If lived experience is thin, still answer, then invite more story.
 
 ═══════════════════════════════════════════════════════════════
 CONVERSATION CONTINUITY RULE
@@ -181,13 +207,21 @@ If RAG_DATA_FOUND is YES — incorporate the retrieved principles.
 If RAG_DATA_FOUND is NO — say honestly: "The classical texts I have access to don't directly address this, so I'm reasoning from first principles."
 
 ═══════════════════════════════════════════════════════════════
-HOW YOU SPEAK (Absolute Rules)
+HOW YOU SPEAK (Absolute Rules — ChatGPT-style clarity)
 ═══════════════════════════════════════════════════════════════
-- Narrative flow only. No bullet points, bold headers, or numbered lists.
-- BLOWTORCH RULE: Replace jargon with visceral metaphors.
-- Never explain mechanics. Direct impact on life only.
-- Dasha Shadows: Acknowledge fade/echo if within 180 days of shift.
-- End every reading with a sharp, chart-derived Socratic question.
+1. DIRECT ANSWER FIRST — 2-4 plain sentences answering the exact question. No preamble.
+2. Then weave in 3-5 specific chart facts from TOPIC CHART ANALYSIS (house, lord, D10/D9, aspect, dasha layer).
+3. Translate jargon to plain English but keep the specific placements — do not flatten to generic dasha.
+4. NO bullet points, NO bold headers, NO numbered lists, NO planet-by-planet dump of the whole chart.
+5. NO ending Socratic question unless user asked for guidance — just answer.
+6. Use EXACT dasha dates from the brief — never say "February" if AD ends March.
+7. Always consider BOTH Lagna chart AND Moon (Chandra) chart when interpreting.
+8. For gemstone questions — use GEMSTONE ANALYSIS section verbatim verdict.
+9. Graha drishti: 7th universal; Mars 4/8, Jupiter 5/9, Saturn 3/10 — cite when listed in topic analysis.
+10. Never repeat what you said in the previous message.
+11. If JUST RECORDED / LIFE ARCHIVE lists events, mention them by date in one sentence, then answer.
+12. NEVER default to "everything happens after Venus Mahadasha" — only cite a future MD if topic chart analysis supports it.
+13. Career questions MUST cite 10th house, 10th lord, Saturn, D10, and who aspects the 10th.
 
 ═══════════════════════════════════════════════════════════════
 COMPUTATION VALIDATION MANDATE
@@ -243,33 +277,51 @@ class ConsultationStyleEngine:
 
 
 class LivedExperienceExtractor:
-    def extract_from_text(self, text: str) -> dict:
+    def extract_from_text(self, text: str, use_llm: bool = True) -> dict:
+        from core.conversation_memory import _rule_extract
+        data = _rule_extract(text)
+        if not use_llm or len(text.strip()) < 80:
+            return data
         prompt = f"""Analyze user response and extract astrological context.
 Return ONLY a JSON object with:
 "profession" (work/career), "struggles" (current pains), "goals" (ambitions),
-"life_events" (events with dates if mentioned), "emotional_tone" (emotional vibe).
+"life_events" (events with dates if mentioned), "emotional_tone" (emotional vibe),
+"trading" (if markets/trading mentioned), "relationships" (if love/marriage mentioned).
 
-USER TEXT: "{text}"
+USER TEXT: "{text[:1200]}"
 JSON:"""
         try:
             if LLM_MODE == "groq" and client_groq:
                 resp = client_groq.chat.completions.create(
-                    model="llama-3.1-8b-instant",
+                    model=GROQ_EXTRACT_MODEL,
                     messages=[{"role": "user", "content": prompt}],
-                    response_format={"type": "json_object"}
+                    response_format={"type": "json_object"},
                 )
-                return json.loads(resp.choices[0].message.content)
-            return {}
+                llm_data = json.loads(resp.choices[0].message.content)
+                data.update({k: v for k, v in llm_data.items() if v})
+            else:
+                try:
+                    r = ollama.chat(
+                        model="mistral",
+                        messages=[{"role": "user", "content": prompt}],
+                        format="json",
+                    )
+                    llm_data = json.loads(r["message"]["content"])
+                    data.update({k: v for k, v in llm_data.items() if v})
+                except Exception:
+                    pass
+            return data
         except Exception:
-            return {}
+            return data
 
 
 def detect_question_topic(question: str) -> str:
     q = question.lower()
     mapping = {
-        "career": ["career", "job", "work", "business", "startup", "promotion"],
+        "career": ["career", "job", "work", "business", "startup", "promotion", "internship", "intern", "platform"],
         "wealth": ["money", "wealth", "finance", "trading", "investment", "income"],
-        "marriage": ["marriage", "love", "spouse", "relationship", "partner"],
+        "marriage": ["marriage", "love", "spouse", "relationship", "partner", "girl", "propose", "rejected", "crush"],
+        "education": ["exam", "semester", "college", "degree", "backlog", "pass", "paper", "study"],
         "health": ["health", "illness", "disease", "body", "fitness"],
         "forecast": ["when will", "next year", "future", "forecast", "predict", "upcoming"]
     }
@@ -284,6 +336,7 @@ def get_relevant_houses(topic: str) -> dict:
         "career": {"houses": [1, 2, 6, 10, 11], "divisions": [9, 10], "label": "Career"},
         "wealth": {"houses": [1, 2, 5, 9, 11], "divisions": [2, 9], "label": "Wealth"},
         "marriage": {"houses": [1, 2, 5, 7, 11], "divisions": [9], "label": "Marriage"},
+        "education": {"houses": [4, 5, 9], "divisions": [9], "label": "Education"},
         "health": {"houses": [1, 6, 8, 12], "divisions": [6], "label": "Health"},
         "forecast": {"houses": [1, 5, 9, 10, 11], "divisions": [9, 10], "label": "Forecast"},
     }
@@ -331,6 +384,7 @@ def _build_context(
     conversation_history: List[dict] = None,
     immediate_lived_experience: dict = None,
     compact: bool = False,
+    consultation_brief: dict = None,
 ) -> str:
     today = datetime.now().strftime("%A, %d %B %Y | %H:%M IST")
     topic = detect_question_topic(question)
@@ -490,47 +544,84 @@ def _build_context(
     except Exception as e:
         convergence_text = f"[Convergence Error: {e}]"
 
-    # ── RAG Knowledge Base ────────────────────────────────────────────────────
-    knowledge_text = "Knowledge base has no direct classical references for this query."
+    # ── RAG Knowledge Base (skip when compact — saves 5-10s) ─────────────────
+    knowledge_text = "Knowledge base skipped for speed."
     rag_found = False
-    try:
-        query_terms = [question]
-        if profile and profile.get("planets"):
-            rel_houses = rel_data.get('houses', [1])
-            for pname, pd in profile['planets'].items():
-                if pname != "ASC" and pd['house'] in rel_houses:
-                    query_terms.append(f"{pname} {pd['house']}th house {pd['sign']}")
-            dasha = profile.get("dasha", {})
-            query_terms.append(f"{dasha.get('current_md', 'Sun')} Mahadasha {topic}")
-            query_terms.append(f"{dasha.get('current_ad', 'Sun')} Antardasha {topic}")
-            for y in profile.get("yogas", [])[:2]:
-                query_terms.append(f"{y['name']} effects")
-
-        all_chunks = []
-        for term in list(dict.fromkeys(query_terms))[:6]:
-            chunks = search_knowledge(term, n_results=2)
-            if chunks:
-                all_chunks.extend(chunks)
-                rag_found = True
-
-        if all_chunks:
-            seen = set()
-            unique_chunks = []
-            for c in all_chunks:
-                if c[:100] not in seen:
-                    unique_chunks.append(c)
-                    seen.add(c[:100])
-            knowledge_text = "\n\n---\n\n".join(unique_chunks)
-    except Exception as e:
-        print(f"  [RAG] Error: {e}")
-
-    # ── 12-Month Forecast (for forward-looking questions) ─────────────────────
-    forecast_text = ""
-    if topic == "forecast" or any(k in question.lower() for k in ["when will", "next year", "upcoming", "future", "predict"]):
+    if not compact:
+        knowledge_text = "Knowledge base has no direct classical references for this query."
         try:
-            forecast_text = generate_12_month_forecast(user_id)
+            query_terms = [question]
+            if profile and profile.get("planets"):
+                rel_houses = rel_data.get('houses', [1])
+                for pname, pd in profile['planets'].items():
+                    if pname != "ASC" and pd['house'] in rel_houses:
+                        query_terms.append(f"{pname} {pd['house']}th house {pd['sign']}")
+                dasha = profile.get("dasha", {})
+                query_terms.append(f"{dasha.get('current_md', 'Sun')} Mahadasha {topic}")
+                query_terms.append(f"{dasha.get('current_ad', 'Sun')} Antardasha {topic}")
+                for y in profile.get("yogas", [])[:2]:
+                    query_terms.append(f"{y['name']} effects")
+
+            all_chunks = []
+            for term in list(dict.fromkeys(query_terms))[:6]:
+                chunks = search_knowledge(term, n_results=2)
+                if chunks:
+                    all_chunks.extend(chunks)
+                    rag_found = True
+
+            if all_chunks:
+                seen = set()
+                unique_chunks = []
+                for c in all_chunks:
+                    if c[:100] not in seen:
+                        unique_chunks.append(c)
+                        seen.add(c[:100])
+                knowledge_text = "\n\n---\n\n".join(unique_chunks)
         except Exception as e:
-            forecast_text = f"[Forecast Error: {e}]"
+            print(f"  [RAG] Error: {e}")
+
+    # ── Horizon Forecast (today / 30d / 1y / 5y / life) ───────────────────────
+    forecast_text = ""
+    qlow = question.lower()
+    wants_forecast = topic == "forecast" or any(
+        k in qlow
+        for k in [
+            "when will", "next year", "upcoming", "future", "predict",
+            "today", "this month", "30 day", "30 days", "next month",
+            "five year", "5 year", "5 years", "life overview", "my life",
+            "this year", "forecast",
+        ]
+    )
+    if wants_forecast and not (consultation_brief and consultation_brief.get("forecast_block")):
+        try:
+            # Pick the tightest matching horizon to save tokens
+            if any(k in qlow for k in ["today", "aaj", "this day"]):
+                h = "today"
+            elif any(k in qlow for k in ["30 day", "30 days", "this month", "next month", "weeks"]):
+                h = "30d"
+            elif any(k in qlow for k in ["5 year", "5 years", "five year", "five years"]):
+                h = "5y"
+            elif any(k in qlow for k in ["my life", "life overview", "whole life", "birth chart meaning"]):
+                h = "life"
+            elif any(k in qlow for k in ["this year", "next year", "12 month", "one year", "1 year"]):
+                h = "1y"
+            else:
+                h = "all"
+            packed = generate_horizon_forecast(user_id, horizon=h)
+            if h == "all":
+                forecast_text = format_all_horizons_for_agent(packed)
+            else:
+                forecast_text = format_horizon_forecast(
+                    packed.get("horizons", {}).get(h, packed)
+                )
+            # Soft cap — Groq context is tight
+            if len(forecast_text) > 6000:
+                forecast_text = forecast_text[:6000] + "\n...[forecast trimmed]"
+        except Exception as e:
+            try:
+                forecast_text = generate_12_month_forecast(user_id)
+            except Exception:
+                forecast_text = f"[Forecast Error: {e}]"
 
     # ── Conversation History ──────────────────────────────────────────────────
     conv_history_text = ""
@@ -553,13 +644,27 @@ def _build_context(
             parts.append(f"Goals: {immediate_lived_experience['goals']}")
         if immediate_lived_experience.get("life_events"):
             parts.append(f"Life Events Mentioned: {immediate_lived_experience['life_events']}")
+        if immediate_lived_experience.get("relationships"):
+            parts.append(f"Relationships: {immediate_lived_experience['relationships']}")
         if immediate_lived_experience.get("emotional_tone"):
             parts.append(f"Emotional Tone: {immediate_lived_experience['emotional_tone']}")
+        if immediate_lived_experience.get("_logged_events"):
+            from core.conversation_memory import format_logged_events
+            parts.append(format_logged_events(immediate_lived_experience["_logged_events"]))
         if parts:
             immediate_exp_text = "\n".join(parts)
 
     # ── Assemble Final Context ────────────────────────────────────────────────
     sections = [f"TODAY: {today}\n"]
+
+    if consultation_brief and consultation_brief.get("formatted"):
+        sections.append(consultation_brief["formatted"] + "\n")
+
+    if user_id:
+        try:
+            sections.append(f"[CONVERSATION MEMORY — learned from prior chats]\n{format_conversation_memory(user_id)}\n")
+        except Exception:
+            pass
 
     # Master data prompt injection removed to respect LLM rate limits and avoid payload bloat.
     # The profile.json dynamically generated already contains exactly identical scores.
@@ -598,7 +703,7 @@ def _build_context(
     sections.append(f"[MEMORY — RELEVANT LOGGED EVENTS]\n{history_text}\n")
 
     if forecast_text:
-        sections.append(f"[12-MONTH FORECAST]\n{forecast_text}\n")
+        sections.append(f"[HORIZON FORECAST — use only these scored tables for timing]\n{forecast_text}\n")
 
     sections.append(
         f"[CLASSICAL KNOWLEDGE (RAG AUTHORITY)]\n"
@@ -609,30 +714,90 @@ def _build_context(
     return "\n".join(sections)
 
 
-def _build_instruction(question: str) -> str:
+def _build_instruction(question: str, brief: dict = None) -> str:
+    extra = ""
+    if brief:
+        extra = (
+            f" Engine confidence: {brief.get('confidence')}/100. "
+            f"Precision: {brief.get('precision')}. "
+            f"MANDATE: {brief.get('timing_rule')} "
+        )
     return (
         f"USER QUESTION: {question}\n"
-        f"Respond as Guruji. Follow all persona rules. "
-        f"Reference the conversation history if relevant. "
-        f"Use empirical feedback if available. "
-        f"OBEY the CONVERGENCE GATE timing mandate — never give precise dates if forbidden. "
-        f"If PENDING PREDICTIONS exist, ask the user naturally if those came true — this trains the system. "
-        f"Use KAKSHYA blocked transits to warn against timing. "
-        f"Synthesis over data. End with a Socratic question."
+        f"Respond as Guruji.{extra}\n"
+        f"1) Start with DIRECT ANSWER from the brief (plain English, 2-4 sentences).\n"
+        f"2) Cite TOPIC CHART ANALYSIS: houses, lords, {brief.get('topic_label', 'topic')} divisional chart, aspects, MD/AD/PD.\n"
+        f"3) Use EXACT dasha dates from brief.\n"
+        f"4) No generic Venus-MD deferral unless chart facts require it.\n"
+        f"5) Reference BOTH Lagna and Moon chart where relevant.\n"
+        f"6) Never refuse this question. If they shared a life story, record it and answer through the chart.\n"
+        f"7) Answer the specific facts they named — not a recycled dasha lecture."
     )
 
 
 def _extract_and_save_lived_experience(text: str, user_id: str) -> dict:
     """Extract lived experience from text, save to disk, and return for immediate injection."""
-    if not user_id or not text or len(text.strip()) < 20:
+    if not user_id or not text or len(text.strip()) < 8:
         return {}
     extractor = LivedExperienceExtractor()
-    data = extractor.extract_from_text(text)
-    # Filter out empty/None values
-    data = {k: v for k, v in data.items() if v}
+    data = extractor.extract_from_text(text, use_llm=False)
+    data = {k: v for k, v in data.items() if v and not str(k).startswith("_")}
     if data:
-        update_lived_experience(user_id, data)
+        lived = {k: data[k] for k in data if k in (
+            "profession", "struggles", "goals", "life_events", "emotional_tone"
+        )}
+        if lived:
+            update_lived_experience(user_id, lived)
+        insights = {k: data[k] for k in data if k in ("trading", "relationships")}
+        if insights:
+            from core.user_profile_engine import update_conversation_insights
+            update_conversation_insights(user_id, insights)
     return data
+
+
+def _stream_with_guard(messages: list, brief: dict) -> Generator[str, None, str]:
+    """Stream LLM output, apply timing guard, return full buffered text."""
+    buffer = []
+    preamble = build_refusal_preamble(brief)
+    if preamble:
+        yield preamble
+
+    if LLM_MODE == "groq" and client_groq:
+        stream = client_groq.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=messages,
+            stream=True,
+            temperature=0.55,
+            max_tokens=2048,
+            # Reasoning models spend completion tokens on hidden thinking before the reply.
+            extra_body={"reasoning_effort": "low"} if "gpt-oss" in GROQ_MODEL else None,
+        )
+        for chunk in stream:
+            content = chunk.choices[0].delta.content
+            if content:
+                buffer.append(content)
+                yield content
+    else:
+        ollama_msgs = [m for m in messages if m["role"] != "system"]
+        system = messages[0]["content"] if messages else ""
+        stream = ollama.chat(
+            model="mistral",
+            messages=[{"role": "system", "content": _fit_system_prompt(system)}] + ollama_msgs,
+            stream=True,
+        )
+        for chunk in stream:
+            part = chunk["message"]["content"]
+            buffer.append(part)
+            yield part
+
+    full = "".join(buffer)
+    cleaned, audit = enforce_timing_gate(full, brief)
+    if audit.get("appended_note") and audit["appended_note"]:
+        suffix = cleaned[len(full):]
+        if suffix:
+            yield suffix
+        return cleaned
+    return full
 
 
 def ask_stream(
@@ -651,33 +816,48 @@ def ask_stream(
     active_uid = user_id or get_active_user_id()
     conversation_history = conversation_history or []
 
+    if not active_uid:
+        yield (
+            "Namaste. I need your birth chart before I can read the sky for you.\n\n"
+            "Please create your profile first — name, date, time, and birth city — "
+            "then ask your question again."
+        )
+        return
+
     # ── Astrology-only gate ───────────────────────────────────────────────────
     gate = check_astrology_topic(question, conversation_history)
     if not gate.get("allowed"):
         yield gate.get("message", REFUSAL_MESSAGE)
         return
 
-    # ── Step 1: Extract lived experience from the question AND inject immediately ──
-    immediate_experience = {}
-    if active_uid:
-        immediate_experience = _extract_and_save_lived_experience(question, active_uid)
+    profile = load_user_profile(active_uid)
 
-    profile = load_user_profile(active_uid) if active_uid else get_active_profile()
+    # Parse life facts immediately (no DB writes — those happen after the reply)
+    immediate_experience = _extract_and_save_lived_experience(question, active_uid)
+    logged_events = []
+    try:
+        logged_events = extract_dated_events(question)
+    except Exception as e:
+        print(f"  [LIFE EVENT] parse {e}")
+    if logged_events:
+        immediate_experience["life_events"] = "; ".join(
+            f"{e['date']}: {e['title']}" for e in logged_events
+        )
+        immediate_experience["_logged_events"] = logged_events
 
-    if active_uid:
-        try:
-            log_prediction(active_uid, question, profile)
-        except Exception as e:
-            print(f"  [PREDICTION] Log failed: {e}")
+    brief = build_consultation_brief(profile, question, user_id=active_uid)
+    if logged_events:
+        brief["logged_events_this_turn"] = logged_events
+        brief["formatted"] = format_consultation_brief(brief, brief.get("forecast_text") or "")
 
-    # ── Step 2: Build full context (with immediate experience injected) ────────
-    def _make_messages(compact: bool = False):
+    def _make_messages(compact: bool = True):
         ctx = _build_context(
             question=question,
             user_id=active_uid,
             conversation_history=conversation_history,
             immediate_lived_experience=immediate_experience,
             compact=compact,
+            consultation_brief=brief,
         )
         system = _fit_system_prompt(_build_dynamic_system_prompt(profile) + "\n\n" + ctx)
         msgs = [{"role": "system", "content": system}]
@@ -686,39 +866,51 @@ def ask_stream(
             content = msg.get("content", "")
             if content:
                 msgs.append({"role": role, "content": content[:600 if compact else 1000]})
-        msgs.append({"role": "user", "content": _build_instruction(question)})
+        msgs.append({"role": "user", "content": _build_instruction(question, brief)})
         return msgs
 
-    messages = _make_messages(compact=False)
+    messages = _make_messages(compact=True)
+    full_response = ""
 
-    # ── Step 5: Stream from LLM ───────────────────────────────────────────────
-    if LLM_MODE == "groq" and client_groq:
-        try:
-            yield from _stream_groq(messages)
-        except Exception as e:
-            err = str(e)
-            print(f"  [GROQ] Error: {err[:300]}")
-            if any(k in err.lower() for k in ("413", "too large", "tokens", "rate_limit", "tpm")):
-                yield "\n*Chart reading was too large for Groq — retrying in compact mode...*\n\n"
-                try:
-                    yield from _stream_groq(_make_messages(compact=True))
-                except Exception as e2:
-                    yield (
-                        f"\n⚠️ Groq still blocked ({str(e2)[:200]}). "
-                        "Wait 60 seconds, toggle to Ollama in the app, or ask a shorter question.\n"
-                    )
-            else:
-                yield f"\n⚠️ AI connection error: {err[:300]}\n"
-    else:
-        try:
-            yield from _stream_ollama(
-                messages[0]["content"], question, conversation_history
-            )
-        except Exception as e:
-            yield (
-                f"\n⚠️ Ollama not reachable. Install/start Ollama (mistral) or set GROQ_API_KEY in .env.\n"
-                f"Detail: {str(e)[:200]}\n"
-            )
+    try:
+        if LLM_MODE == "groq" and client_groq:
+            try:
+                for chunk in _stream_with_guard(messages, brief):
+                    full_response += chunk
+                    yield chunk
+            except Exception as e:
+                err = str(e)
+                print(f"  [GROQ] Error: {err[:300]}")
+                if any(k in err.lower() for k in ("413", "too large", "tokens", "rate_limit", "tpm")):
+                    yield "\n*Retrying in compact mode...*\n\n"
+                    messages = _make_messages(compact=True)
+                    for chunk in _stream_with_guard(messages, brief):
+                        full_response += chunk
+                        yield chunk
+                else:
+                    yield f"\n⚠️ AI connection error: {err[:300]}\n"
+        else:
+            try:
+                for chunk in _stream_with_guard(messages, brief):
+                    full_response += chunk
+                    yield chunk
+            except Exception as e:
+                yield (
+                    f"\n⚠️ Ollama not reachable. Install/start Ollama (mistral) or set GROQ_API_KEY in .env.\n"
+                    f"Detail: {str(e)[:200]}\n"
+                )
+    finally:
+        if full_response.strip() and active_uid:
+            try:
+                if any(k in question.lower() for k in ("when", "will i", "predict", "profit", "marriage", "timing")):
+                    log_prediction(active_uid, question, profile)
+            except Exception as e:
+                print(f"  [PREDICTION] Log failed: {e}")
+            try:
+                extracted = learn_from_turn(active_uid, question, full_response, brief)
+                save_conversation_turn(active_uid, question, full_response, brief, extracted)
+            except Exception as e:
+                print(f"  [CONV MEMORY] {e}")
 
 
 def ask(question: str, user_id: str = None) -> str:

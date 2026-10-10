@@ -7,7 +7,8 @@ groq
 ollama
 chromadb
 kerykeion
-swisseph
+pyswisseph
+python-dateutil
 pyyaml
 # Knowledge ingest
 youtube-transcript-api

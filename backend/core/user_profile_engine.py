@@ -386,7 +386,7 @@ def _compute_profile_from_kerykeion(birth_info: dict) -> dict:
         except Exception as e:
             print(f"  [WARN] Failed to load ground truth for {user_id}: {e}")
 
-    geonames_user = os.getenv("GEONAMES_USERNAME", "demo_user")
+    geonames_user = os.getenv("GEONAMES_USERNAME") or None
     # ... rest of kerykeion setup ...
 
     subject = AstrologicalSubject(
@@ -598,8 +598,10 @@ def _compute_profile_from_kerykeion(birth_info: dict) -> dict:
     # ── Step 5: Ashtakavarga (Full Parashara Computation) ───────────────────
     from core.ashtakavarga import calculate_ashtakavarga
     av_data = calculate_ashtakavarga(subject)
-    sav = av_data["sarvashtakavarga"]
-    
+    # Profile consumers read SAV by Lagna house; the UI reads it by sign (Aries=1).
+    sav = av_data["sarvashtakavarga_lagna"]
+    av_data["sarvashtakavarga_by_sign"] = {s: av_data["sarvashtakavarga"][s] for s in range(1, 13)}
+
     # OVERRIDE SAV
     if "ashtakavarga" in ground_truth:
         gt_sav = ground_truth["ashtakavarga"].get("sarvashtakavarga")
@@ -678,12 +680,16 @@ def _compute_profile_from_kerykeion(birth_info: dict) -> dict:
 
     remedies = []
     for r in structured_remedies:
+        planet = r["planet"]
+        gem = PLANET_REMEDIES.get(planet, {}).get("gemstone", "Consult astrologer before wearing")
+        mantra = PLANET_REMEDIES.get(planet, {}).get("mantra", r["spiritual"])
+        charity = PLANET_REMEDIES.get(planet, {}).get("charity", r["material"])
         remedies.append({
-            "planet": r["planet"],
+            "planet": planet,
             "reason": "Affliction / Lower Rupa Strength",
-            "mantra": r["spiritual"],
-            "gemstone": "Consult for specifics",
-            "charity": r["material"] + " | Behavioral: " + r["behavioral"]
+            "mantra": mantra,
+            "gemstone": gem,
+            "charity": charity + " | Behavioral: " + r["behavioral"]
         })
 
     if not remedies:
@@ -766,6 +772,7 @@ def _compute_profile_from_kerykeion(birth_info: dict) -> dict:
     # Build the assembled profile
     # ── Step 11: Real Astrologer Synthesis ─────────────────────────────────
     from core.bhrigu_nadi import BhriguNadiEngine
+    from core.moon_chart import build_moon_chart
     from core.jaimini_padas import JaiminiPadaEngine
     from core.tajika_engine import TajikaEngine
     from core.karmic_engine import KarmicNarrativeEngine
@@ -860,6 +867,7 @@ def _compute_profile_from_kerykeion(birth_info: dict) -> dict:
             "sthira": sthira_karakas
         },
         "remedies": remedies,
+        "moon_chart": build_moon_chart({"lagna": {"sign": lagna_sign}, "rashi": {"sign": rashi_sign}, "planets": planets}),
         "bhrigu_nadi": bhrigu.get_full_report(),
         "micro_timing": pada_engine.get_current_pada_snapshot(),
         "tajika": tajika_engine.get_varshaphal(datetime.now().year),
@@ -947,6 +955,18 @@ def refresh_live_dasha(profile: dict) -> dict:
         "pratyantardasha_timeline": dasha_info.get("pratyantardasha_timeline", []),
         "computed_at": datetime.now().isoformat(),
     }
+
+    # Refresh timeline + moon chart on every load (fixes stale duplicates)
+    try:
+        from core.moon_chart import build_moon_chart
+        from core.bhrigu_nadi import BhriguNadiEngine
+        lagna_sign = profile.get("lagna", {}).get("sign", "Virgo")
+        profile["moon_chart"] = build_moon_chart(profile)
+        bhrigu = BhriguNadiEngine(None, profile["planets"], SIGN_IDX[lagna_sign])
+        profile["bhrigu_nadi"] = bhrigu.get_full_report()
+    except Exception as e:
+        print(f"  [REFRESH] Timeline/moon chart: {e}")
+
     return profile
 
 
@@ -959,8 +979,8 @@ def load_user_profile(user_id: str) -> dict:
     with open(p, "r", encoding="utf-8") as f:
         profile = json.load(f)
         
-    # AUTO-UPGRADE: Re-compute if divisional charts or other new layers are missing
-    if "divisional_charts" not in profile or "panchanga" not in profile:
+    # AUTO-UPGRADE: Re-compute if divisional charts, moon chart, or other new layers missing
+    if "divisional_charts" not in profile or "panchanga" not in profile or "moon_chart" not in profile:
         print(f"  [AUTO-UPGRADE] Profile {user_id} missing new data layers. Re-computing...")
         bpath = _birth_path(user_id)
         if bpath.exists():
@@ -1014,6 +1034,28 @@ def set_active_user(user_id: str) -> None:
     ACTIVE_USER_FILE.write_text(user_id)
 
 
+def update_conversation_insights(user_id: str, data: dict) -> None:
+    """Merge domain learnings from chat (trading, relationships, etc.)."""
+    p_path = _profile_path(user_id)
+    if not p_path.exists() or not data:
+        return
+    with open(p_path, "r", encoding="utf-8") as f:
+        p = json.load(f)
+    ci = p.get("conversation_insights") or {}
+    for key, val in data.items():
+        if key.startswith("_"):
+            continue
+        if isinstance(val, str) and ci.get(key):
+            if val not in str(ci[key]):
+                ci[key] = f"{ci[key]} | {val}"[:600]
+        else:
+            ci[key] = val
+    ci["_last_learned"] = datetime.now().isoformat(timespec="seconds")
+    p["conversation_insights"] = ci
+    with open(p_path, "w", encoding="utf-8") as f:
+        json.dump(p, f, indent=2, ensure_ascii=False, default=str)
+
+
 def update_lived_experience(user_id: str, data: dict) -> None:
     """
     Updates the qualitative user context in the profile.
@@ -1042,7 +1084,20 @@ def update_lived_experience(user_id: str, data: dict) -> None:
                 p["lived_experience"][key] = {}
             p["lived_experience"][key].update(val)
         else:
-            p["lived_experience"][key] = val
+            existing = p["lived_experience"].get(key)
+            val_s = str(val).strip() if val is not None else ""
+            looks_q = bool(val_s) and len(val_s) < 140 and any(
+                h in val_s.lower() for h in ("will i", "what will", "should i")
+            )
+            if looks_q and existing:
+                continue
+            if isinstance(existing, list) and val_s:
+                if val_s not in [str(x) for x in existing]:
+                    p["lived_experience"][key] = existing + [val_s]
+            elif isinstance(existing, str) and existing and val_s and val_s not in existing:
+                p["lived_experience"][key] = f"{existing} | {val_s}"[:800]
+            else:
+                p["lived_experience"][key] = val
             
     with open(p_path, "w", encoding="utf-8") as f:
         json.dump(p, f, indent=2, ensure_ascii=False, default=str)
@@ -1086,6 +1141,16 @@ def profile_to_context_text(profile: dict) -> str:
         f"  Goals/Ambitions:      {lived.get('goals', 'Not shared yet')}",
         f"  Significant Events:    {lived.get('life_events', 'Not shared yet')}",
         f"  Emotional Signature:   {lived.get('emotional_tone', 'Not shared yet')}",
+    ]
+    ci = profile.get("conversation_insights") or {}
+    if ci.get("trading") or ci.get("relationships"):
+        lines += [
+            "",
+            "━━━ LEARNED FROM CONVERSATIONS ━━━",
+            f"  Trading context: {ci.get('trading', '—')}",
+            f"  Relationship context: {ci.get('relationships', '—')}",
+        ]
+    lines += [
         "",
         f"LAGNA: {lagna['sign']} {lagna['degree']:.1f}° | Nakshatra: {lagna['nakshatra']} Pada {lagna['pada']}",
         f"RASHI: {rashi['sign']} | Moon Nakshatra: {rashi['nakshatra']}",

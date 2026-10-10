@@ -3,7 +3,7 @@
 ## Critical System Issues Resolved
 
 ### Backend Engine & Logic
-*   **`.env` Parsing Failure:** The `GROQ_API_KEY` was accidentally concatenated with `GEONAMES_PASSWORD` on a single line (`...GROQ_API_KEY=gsk_...`), rendering the API key invisible to the python environment and gracefully but silently falling back to Ollama. **Fixed.**
+*   **`.env` Parsing Failure:** The `GROQ_API_KEY` was accidentally concatenated with `GEONAMES_PASSWORD` on a single line, rendering the API key invisible to the python environment and gracefully but silently falling back to Ollama. **Fixed.**
 *   **Dynamic Data Context Integration (`agent.py`):** The agent context builder was silently bypassing dynamically calculated user profiles in favor of a hardcoded `birth_data.yaml`. This caused static outputs regardless of which user was actually loaded. The system now parses strength, yogas, dasha bounds, and 12-layer data natively through the `profile.json`.
 *   **`shadbala_engine.py` Refactoring:** Previous values were strictly hardcoded to a single user baseline (User's data points). Re-engineered the file to compute `shadbala_rupas` dynamically per user, evaluating *Uccha Bala* (exaltation deviation), *Kendradi Bala*, *Naisargika*, and *Chesta Bala* in virupas accurately. Every user receives a bespoke result.
 *   **Sign-Name Mismatch Crash:** `ashtakavarga.py` used truncated 3-character keys (e.g. "Ari", "Tau") leading to a fatal KeyErrors as Kerykeion v4 objects return fullname values ("Aries") for planetary coordinates. **Fixed by providing generalized lookup maps for any version.**

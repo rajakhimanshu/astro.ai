@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, Plus, Check, LayoutDashboard, MessageSquare, Shield, Zap, ChevronRight, Menu, X, Clock, Compass, Square, Sun, Moon, User, BookOpen, Calendar, TrendingUp, Heart, AlertCircle, Target } from 'lucide-react';
+import { Star, Plus, Check, LayoutDashboard, MessageSquare, Shield, Zap, ChevronRight, Menu, X, Clock, Compass, Square, Sun, Moon, User, BookOpen, Calendar, TrendingUp, Heart, AlertCircle, Target, Sparkles } from 'lucide-react';
 
-const API_BASE = "http://127.0.0.1:8001/api";
+// Proxied via next.config.ts → http://127.0.0.1:8001/api (same-origin, no CORS)
+const API_BASE = "/api";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UI COMPONENTS
@@ -193,6 +194,11 @@ export default function Page() {
   const [predictions, setPredictions] = useState<any[]>([]);
   const [accuracy, setAccuracy] = useState<any>(null);
   const [predictionsLoading, setPredictionsLoading] = useState(false);
+  const [forecast, setForecast] = useState<any>(null);
+  const [forecastHorizon, setForecastHorizon] = useState<string>("today");
+  const [forecastLoading, setForecastLoading] = useState(false);
+  const [consultationBrief, setConsultationBrief] = useState<any>(null);
+  const [creatingProfile, setCreatingProfile] = useState(false);
   const [knowledgeStats, setKnowledgeStats] = useState<any>(null);
   const [youtubeUrls, setYoutubeUrls] = useState("");
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
@@ -269,6 +275,7 @@ export default function Page() {
         setProfile(data);
         fetchEvents(userId);
         fetchPredictions(userId);
+        fetchForecast(userId);
         if (messages.length === 0) {
           setMessages([{ role: "bot", content: `Greetings, ${data.meta?.name || 'Consultant'}.\n\nThe celestial archive is ready. What would you like to explore today?` }]);
         }
@@ -276,16 +283,30 @@ export default function Page() {
     } catch(e) { console.error(e); }
   }
 
-  const fetchUsers = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/users`, { mode: 'cors' });
-      if (res.ok) {
-        const data = await res.json();
-        setUsers(data.users || []);
-        if (data.llm_mode) setLlmMode(data.llm_mode);
-        if (data.active_user_id) fetchProfile(data.active_user_id);
+  const fetchUsers = async (retries = 5) => {
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        const res = await fetch(`${API_BASE}/users`);
+        if (res.ok) {
+          const data = await res.json();
+          setUsers(data.users || []);
+          if (data.llm_mode) setLlmMode(data.llm_mode);
+          if (data.active_user_id) {
+            fetchProfile(data.active_user_id);
+          } else if ((data.users || []).length === 0) {
+            setShowProfileModal(true);
+          }
+          return;
+        }
+      } catch (e) {
+        if (attempt === retries - 1) {
+          console.error("API unreachable — is the backend running on port 8001?", e);
+          showToast("Cannot reach Jyotish API. Start backend: cd backend && python main.py", "error");
+        } else {
+          await new Promise((r) => setTimeout(r, 1200 * (attempt + 1)));
+        }
       }
-    } catch(e) { console.error(e); }
+    }
   }
 
   useEffect(() => { fetchUsers(); fetchKnowledgeStats(); }, []);
@@ -365,13 +386,29 @@ export default function Page() {
 
   const handleChat = async () => {
     if (!input.trim() || isTyping) return;
+    if (!activeUser || !profile) {
+      showToast('Create your birth profile first — chart is required for real readings.', 'info');
+      setShowProfileModal(true);
+      return;
+    }
     const msg = input;
     setInput("");
     const userMsg = { role: "user", content: msg };
     setMessages((prev: any) => [...prev, userMsg]);
     setIsTyping(true);
 
-    // Build history to send (exclude the message we just added)
+    // Fetch engine brief (shown to user + injected into LLM)
+    try {
+      const briefRes = await fetch(
+        `${API_BASE}/users/${activeUser}/consultation/brief?question=${encodeURIComponent(msg)}`,
+        { mode: 'cors' }
+      );
+      if (briefRes.ok) {
+        const bd = await briefRes.json();
+        setConsultationBrief(bd.data || null);
+      }
+    } catch (_) {}
+
     const historyToSend = conversationHistory.slice(-20);
 
     const controller = new AbortController();
@@ -414,6 +451,11 @@ export default function Page() {
         { role: "user", content: msg },
         { role: "bot", content: botResponse }
       ]);
+      // Profile learns from conversation — refresh lived context + events archive
+      if (activeUser) {
+        fetchProfile(activeUser);
+        fetchEvents(activeUser);
+      }
     } catch (e: any) {
       if (e.name !== 'AbortError') {
         console.error("Chat error:", e);
@@ -441,6 +483,22 @@ export default function Page() {
       if (accRes.ok) { const d = await accRes.json(); setAccuracy(d.data || null); }
     } catch (_) {}
   }, []);
+
+  const fetchForecast = useCallback(async (uid: string) => {
+    setForecastLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/users/${uid}/forecast?horizon=all`, { mode: 'cors' });
+      if (res.ok) {
+        const d = await res.json();
+        setForecast(d.data || null);
+      } else {
+        showToast('Forecast engine unavailable.', 'error');
+      }
+    } catch (_) {
+      showToast('Could not reach forecast API.', 'error');
+    }
+    setForecastLoading(false);
+  }, [showToast]);
 
   const verifyPrediction = async (predictionId: number, happened: boolean) => {
     if (!activeUser) return;
@@ -499,6 +557,7 @@ export default function Page() {
 
   const navigation = [
     { id: 'reading', label: 'Consultation', icon: MessageSquare },
+    { id: 'forecast', label: 'Forecast', icon: Sparkles },
     { id: 'charts', label: 'Horoscopes', icon: LayoutDashboard },
     { id: 'analysis', label: 'Synthesis', icon: Zap },
     { id: 'timeline', label: 'Timeline', icon: Clock },
@@ -508,6 +567,24 @@ export default function Page() {
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'remedies', label: 'Prescriptions', icon: Shield },
   ];
+
+  const forecastTabs = [
+    { id: 'today', label: 'Today' },
+    { id: '30d', label: '30 Days' },
+    { id: '1y', label: '1 Year' },
+    { id: '5y', label: '5 Years' },
+    { id: 'life', label: 'Life' },
+  ];
+
+  const qualityColor = (q: string) => {
+    const u = (q || '').toUpperCase();
+    if (u.includes('AUSPICIOUS') || u.includes('GROWTH') || u.includes('SUPPORTIVE') || u.includes('STRONG')) return 'green';
+    if (u.includes('CAUTION') || u.includes('TEST') || u.includes('WEAK')) return 'red';
+    if (u.includes('MIXED') || u.includes('BUILD')) return 'gold';
+    return 'neutral';
+  };
+
+  const activeForecast = forecast?.horizons?.[forecastHorizon];
 
   return (
     <main className="flex w-full h-full bg-cream-100 text-ink-900 overflow-hidden font-sans selection:bg-classic-gold/20 paper-texture">
@@ -644,15 +721,38 @@ export default function Page() {
                 <motion.div key={activeView} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3 }} className="min-h-full">
                     {activeView === 'reading' && (
                         <div className="flex flex-col min-h-full max-w-4xl mx-auto w-full">
+                            {!profile && (
+                                <div className="p-16 text-center space-y-6">
+                                    <Compass className="w-14 h-14 mx-auto text-terracotta opacity-40" />
+                                    <h3 className="text-2xl font-black uppercase tracking-widest">Create Your Chart First</h3>
+                                    <p className="text-ink-500 max-w-md mx-auto italic">Enter birth date, time, and city. The engine computes your full kundali before Guruji speaks.</p>
+                                    <button onClick={() => setShowProfileModal(true)} className="px-8 py-4 bg-ink-900 text-white rounded-2xl font-black uppercase tracking-widest text-[11px]">New Profile</button>
+                                </div>
+                            )}
+                            {profile && consultationBrief && (
+                                <div className="mx-10 md:mx-16 mt-8 p-5 rounded-2xl border border-terracotta/20 bg-terracotta/5 text-[12px]">
+                                    <div className="flex flex-wrap gap-3 items-center justify-between">
+                                        <span className="font-black uppercase tracking-widest text-terracotta">Engine Brief · {consultationBrief.topic_label}</span>
+                                        <Badge color={consultationBrief.confidence >= 55 ? 'green' : consultationBrief.confidence >= 35 ? 'gold' : 'red'}>
+                                            {consultationBrief.confidence}/100 · {consultationBrief.precision}
+                                        </Badge>
+                                    </div>
+                                    <p className="mt-2 text-ink-600 dark:text-ink-300 italic">{consultationBrief.timing_rule}</p>
+                                </div>
+                            )}
+                            {profile && (
                             <div className="flex-1 p-10 md:p-16 space-y-12 pb-32">{messages.map((m: any, i: number) => (
                                     <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                         {m.role === 'bot' && <div className="w-10 h-10 mr-5 rounded-full border border-ink-900/10 dark:border-white/10 flex items-center justify-center shrink-0 mt-1 bg-white dark:bg-zinc-900 shadow-sm"><Compass className="w-5 h-5 text-terracotta" /></div>}
                                         <div className={`p-7 text-[16px] leading-[1.8] max-w-[85%] whitespace-pre-wrap shadow-sm rounded-2xl ${m.role === 'user' ? 'bg-ink-900 dark:bg-zinc-800 border border-ink-900 dark:border-zinc-700 text-white font-medium rounded-tr-sm shadow-md' : 'bg-white dark:bg-zinc-900/60 border border-ink-900/10 dark:border-white/10 text-ink-800 dark:text-ink-900 font-medium'}`}>{m.content}</div>
                                     </div>
                                 ))}<div ref={messagesEndRef} className="h-8" /></div>
+                            )}
+                            {profile && (
                             <div className="sticky bottom-0 p-8 bg-gradient-to-t from-cream-100 via-cream-100 dark:from-cream-100 dark:via-cream-100 to-transparent pt-16 z-20">
+                                <p className="text-[10px] text-ink-400 text-center mb-3 uppercase tracking-widest">Each message updates your lived context · verify predictions to improve accuracy</p>
                                 <div className="flex items-center relative group">
-                                    <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleChat()} placeholder="Ask about transits or karma..." className="w-full bg-white dark:bg-zinc-900/80 border border-ink-900/10 dark:border-white/10 p-6 pl-8 pr-32 rounded-full text-[16px] font-medium text-ink-900 placeholder-ink-400 focus:outline-none shadow-md focus:border-terracotta/40 dark:focus:border-terracotta/40 transition-colors" />
+                                    <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleChat()} placeholder={profile ? `Ask Guruji about ${profile.meta?.name}'s chart...` : "Create profile first..."} className="w-full bg-white dark:bg-zinc-900/80 border border-ink-900/10 dark:border-white/10 p-6 pl-8 pr-32 rounded-full text-[16px] font-medium text-ink-900 placeholder-ink-400 focus:outline-none shadow-md focus:border-terracotta/40 dark:focus:border-terracotta/40 transition-colors" />
                                     <div className="absolute right-3 flex items-center space-x-2">
                                         {isTyping ? <button onClick={handleStopChat} className="p-4 bg-terracotta/10 text-terracotta rounded-full hover:bg-terracotta hover:text-white transition-all border border-terracotta/20"><Square className="w-4 h-4 fill-current" /></button> : <button onClick={handleChat} disabled={!profile} className="p-4 bg-ink-900 dark:bg-zinc-800 text-white rounded-full hover:bg-terracotta transition-all disabled:opacity-50 shadow-lg"><ChevronRight className="w-6 h-6" strokeWidth={2.5} /></button>}
                                      {!isTyping && messages.length > 1 && (
@@ -663,6 +763,7 @@ export default function Page() {
                                     </div>
                                 </div>
                             </div>
+                            )}
                         </div>
                     )}
                     {activeView === 'charts' && profile && (
@@ -1063,7 +1164,7 @@ export default function Page() {
                                                     <h5 className="text-[13px] font-black text-ink-900 dark:text-white uppercase tracking-widest">{item.event}</h5>
                                                     <Badge color="blue">Partnership</Badge>
                                                 </div>
-                                                <p className="text-2xl font-black text-ink-900 dark:text-ink-300 my-4">Age {item.approx_age}</p>
+                                                <p className="text-2xl font-black text-ink-900 dark:text-ink-300 my-4">{item.window || `Age ${item.approx_age}`}</p>
                                                 <p className="text-[12px] text-ink-600 dark:text-ink-400 font-medium italic leading-relaxed">Trigger: {item.indicator}</p>
                                             </motion.div>
                                         ))}
@@ -1236,6 +1337,243 @@ export default function Page() {
                                     <p className="font-bold uppercase tracking-widest text-[12px]">No events logged yet</p>
                                     <p className="text-[13px] mt-2 italic">Start logging life events to enable the ML feedback engine</p>
                                 </div>
+                            )}
+                        </div>
+                    )}
+                    {activeView === 'forecast' && (
+                        <div className="p-10 md:p-14 max-w-5xl mx-auto space-y-12">
+                            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-4">
+                                <span className="text-[11px] font-black text-terracotta uppercase tracking-[0.5em] bg-terracotta/5 px-6 py-2 rounded-full border border-terracotta/20">Horizon Engine</span>
+                                <h2 className="text-5xl font-black text-ink-900 dark:text-white tracking-tighter uppercase italic">Forecast</h2>
+                                <p className="text-ink-400 text-sm font-medium tracking-widest uppercase max-w-xl mx-auto">
+                                    Today · 30 days · 1 year · 5 years · life — scored from dasha, gochara, ashtakavarga &amp; convergence
+                                </p>
+                                <button
+                                    onClick={() => activeUser && fetchForecast(activeUser)}
+                                    disabled={forecastLoading || !activeUser}
+                                    className="mt-4 text-[11px] font-black uppercase tracking-widest px-5 py-2 border border-ink-900/10 dark:border-white/10 rounded-full hover:border-terracotta/40 disabled:opacity-40"
+                                >
+                                    {forecastLoading ? 'Computing…' : 'Refresh Forecast'}
+                                </button>
+                            </motion.div>
+
+                            <div className="flex flex-wrap justify-center gap-2">
+                                {forecastTabs.map((t) => (
+                                    <button
+                                        key={t.id}
+                                        onClick={() => setForecastHorizon(t.id)}
+                                        className={`px-5 py-2.5 rounded-full text-[11px] font-black uppercase tracking-[0.2em] border transition-all ${
+                                            forecastHorizon === t.id
+                                                ? 'bg-ink-900 text-cream-50 border-ink-900 dark:bg-white dark:text-ink-900'
+                                                : 'bg-white/60 dark:bg-zinc-900/40 text-ink-500 border-ink-900/10 dark:border-white/10 hover:border-terracotta/40'
+                                        }`}
+                                    >
+                                        {t.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {!activeUser && (
+                                <p className="text-center text-ink-400 italic">Select a profile to generate forecasts.</p>
+                            )}
+
+                            {forecastLoading && !activeForecast && (
+                                <div className="text-center py-16 text-ink-400">
+                                    <Sparkles className="w-10 h-10 mx-auto mb-4 animate-pulse text-terracotta" />
+                                    <p className="font-bold uppercase tracking-widest text-[12px]">Reading the sky…</p>
+                                </div>
+                            )}
+
+                            {activeForecast?.error && (
+                                <div className="bg-terracotta/5 border border-terracotta/20 rounded-[2rem] p-8 text-terracotta text-sm">
+                                    {activeForecast.error}
+                                </div>
+                            )}
+
+                            {activeForecast && !activeForecast.error && (
+                                <motion.div
+                                    key={forecastHorizon}
+                                    initial={{ opacity: 0, y: 16 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="space-y-10"
+                                >
+                                    <section className="bg-white dark:bg-zinc-900/40 border border-ink-900/10 dark:border-white/5 rounded-[3rem] p-10 md:p-12 shadow-xl space-y-8">
+                                        <div className="flex flex-wrap items-start justify-between gap-6">
+                                            <div className="space-y-3 max-w-2xl">
+                                                <h3 className="text-2xl md:text-3xl font-black text-ink-900 dark:text-white tracking-tight">
+                                                    {activeForecast.title || forecastHorizon}
+                                                </h3>
+                                                <p className="text-[15px] text-ink-600 dark:text-ink-300 leading-relaxed">
+                                                    {activeForecast.summary}
+                                                </p>
+                                            </div>
+                                            <div className="flex flex-col items-end gap-2">
+                                                <Badge color={qualityColor(String(activeForecast.confidence >= 55 ? 'SUPPORTIVE' : activeForecast.confidence >= 35 ? 'MIXED' : 'CAUTION'))}>
+                                                    Confidence {activeForecast.confidence ?? '—'}/100
+                                                </Badge>
+                                                <span className="text-[10px] font-bold uppercase tracking-widest text-ink-400">
+                                                    {activeForecast.precision}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        {activeForecast.timing_rule && (
+                                            <p className="text-[12px] text-ink-500 italic border-t border-ink-900/5 pt-6">
+                                                {activeForecast.timing_rule}
+                                            </p>
+                                        )}
+                                        {activeForecast.themes?.length > 0 && (
+                                            <ul className="grid gap-3 md:grid-cols-2">
+                                                {activeForecast.themes.filter(Boolean).slice(0, 6).map((t: string, i: number) => (
+                                                    <li key={i} className="text-[13px] text-ink-700 dark:text-ink-300 flex gap-3">
+                                                        <TrendingUp className="w-4 h-4 text-classic-gold shrink-0 mt-0.5" />
+                                                        <span>{t}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </section>
+
+                                    {/* Today detail */}
+                                    {forecastHorizon === 'today' && activeForecast.daily && (
+                                        <section className="grid md:grid-cols-3 gap-6">
+                                            <div className="bg-white dark:bg-zinc-900/40 border border-ink-900/10 dark:border-white/5 rounded-[2rem] p-8">
+                                                <p className="text-[9px] font-black uppercase tracking-widest text-ink-400 mb-3">Day Quality</p>
+                                                <Badge color={qualityColor(activeForecast.daily.quality)}>{activeForecast.daily.quality}</Badge>
+                                                <p className="mt-4 text-3xl font-black">{activeForecast.daily.score}</p>
+                                                <p className="text-[12px] text-ink-500 mt-2">{activeForecast.daily.dasha}</p>
+                                            </div>
+                                            <div className="bg-white dark:bg-zinc-900/40 border border-ink-900/10 dark:border-white/5 rounded-[2rem] p-8">
+                                                <p className="text-[9px] font-black uppercase tracking-widest text-ink-400 mb-3">Favor</p>
+                                                <ul className="space-y-2">
+                                                    {(activeForecast.daily.do || []).map((x: string, i: number) => (
+                                                        <li key={i} className="text-[13px] text-emerald-700 dark:text-emerald-400">• {x}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                            <div className="bg-white dark:bg-zinc-900/40 border border-ink-900/10 dark:border-white/5 rounded-[2rem] p-8">
+                                                <p className="text-[9px] font-black uppercase tracking-widest text-ink-400 mb-3">Avoid</p>
+                                                <ul className="space-y-2">
+                                                    {(activeForecast.daily.avoid || []).map((x: string, i: number) => (
+                                                        <li key={i} className="text-[13px] text-terracotta">• {x}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        </section>
+                                    )}
+
+                                    {/* 30d weeks + windows */}
+                                    {forecastHorizon === '30d' && (
+                                        <>
+                                            <section className="space-y-4">
+                                                <h4 className="text-[13px] font-black uppercase tracking-[0.3em]">Week Buckets</h4>
+                                                <div className="grid gap-4">
+                                                    {(activeForecast.weeks || []).map((w: any, i: number) => (
+                                                        <div key={i} className="bg-white dark:bg-zinc-900/40 border border-ink-900/10 dark:border-white/5 rounded-[1.75rem] p-6 flex flex-wrap justify-between gap-4">
+                                                            <div>
+                                                                <p className="font-black text-ink-900 dark:text-white">{w.label}</p>
+                                                                <p className="text-[13px] text-ink-500 mt-2 max-w-2xl">{w.summary}</p>
+                                                            </div>
+                                                            <Badge color={qualityColor(w.quality)}>{w.quality}</Badge>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </section>
+                                            {(activeForecast.windows || []).length > 0 && (
+                                                <section className="space-y-4">
+                                                    <h4 className="text-[13px] font-black uppercase tracking-[0.3em]">Auspicious Windows</h4>
+                                                    <div className="grid sm:grid-cols-2 gap-4">
+                                                        {activeForecast.windows.map((w: any, i: number) => (
+                                                            <div key={i} className="border border-classic-gold/20 bg-classic-gold/5 rounded-[1.5rem] p-5">
+                                                                <div className="flex justify-between items-center mb-2">
+                                                                    <span className="font-black">{w.label}</span>
+                                                                    <Badge color="gold">Score {w.score}</Badge>
+                                                                </div>
+                                                                <p className="text-[12px] text-ink-500">{w.summary}</p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </section>
+                                            )}
+                                        </>
+                                    )}
+
+                                    {/* 1y months */}
+                                    {forecastHorizon === '1y' && (
+                                        <section className="space-y-3">
+                                            <h4 className="text-[13px] font-black uppercase tracking-[0.3em] mb-4">Month Grid</h4>
+                                            {(activeForecast.months || []).map((m: any, i: number) => (
+                                                <div key={i} className="bg-white dark:bg-zinc-900/40 border border-ink-900/10 dark:border-white/5 rounded-2xl px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+                                                    <div className="min-w-[120px]">
+                                                        <p className="font-black text-sm uppercase tracking-wider">{m.label || m.month}</p>
+                                                        <p className="text-[11px] text-ink-400 mt-1">{m.dasha}</p>
+                                                    </div>
+                                                    <p className="text-[13px] text-ink-600 dark:text-ink-300 flex-1 min-w-[200px]">{m.summary}</p>
+                                                    {m.quality && <Badge color={qualityColor(m.quality)}>{m.quality}</Badge>}
+                                                </div>
+                                            ))}
+                                        </section>
+                                    )}
+
+                                    {/* 5y phases */}
+                                    {forecastHorizon === '5y' && (
+                                        <section className="grid md:grid-cols-2 gap-6">
+                                            {(activeForecast.phases || []).map((p: any, i: number) => (
+                                                <motion.div
+                                                    key={i}
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ delay: i * 0.05 }}
+                                                    className="bg-white dark:bg-zinc-900/40 border border-ink-900/10 dark:border-white/5 rounded-[2rem] p-8 border-l-4 border-l-classic-gold"
+                                                >
+                                                    <div className="flex justify-between items-center mb-4">
+                                                        <h5 className="text-2xl font-black">{p.label}</h5>
+                                                        {p.quality && <Badge color={qualityColor(p.quality)}>{p.quality}</Badge>}
+                                                    </div>
+                                                    <p className="text-[12px] text-ink-400 font-bold uppercase tracking-widest mb-3">{p.dasha}</p>
+                                                    <p className="text-[13px] text-ink-600 dark:text-ink-300 leading-relaxed">{p.summary}</p>
+                                                </motion.div>
+                                            ))}
+                                        </section>
+                                    )}
+
+                                    {/* Life areas */}
+                                    {forecastHorizon === 'life' && activeForecast.life_areas && (
+                                        <section className="space-y-4">
+                                            <h4 className="text-[13px] font-black uppercase tracking-[0.3em]">Life Areas (Natal Promise)</h4>
+                                            <div className="grid md:grid-cols-2 gap-5">
+                                                {Object.values(activeForecast.life_areas).map((a: any, i: number) => (
+                                                    <div key={i} className="bg-white dark:bg-zinc-900/40 border border-ink-900/10 dark:border-white/5 rounded-[2rem] p-7 space-y-3">
+                                                        <div className="flex justify-between items-center">
+                                                            <h5 className="font-black uppercase tracking-wider text-sm">{a.label}</h5>
+                                                            <Badge color={qualityColor(a.verdict)}>{a.confidence}/100</Badge>
+                                                        </div>
+                                                        <p className="text-[13px] font-bold text-terracotta">{a.verdict}</p>
+                                                        <p className="text-[12px] text-ink-500 italic">{a.summary}</p>
+                                                        {(a.signals || []).slice(0, 2).map((s: string, j: number) => (
+                                                            <p key={j} className="text-[11px] text-ink-400">• {s}</p>
+                                                        ))}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {(activeForecast.yogas || []).length > 0 && (
+                                                <div className="pt-6">
+                                                    <h4 className="text-[13px] font-black uppercase tracking-[0.3em] mb-4">Key Yogas</h4>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {activeForecast.yogas.map((y: any, i: number) => (
+                                                            <Badge key={i} color="gold">{y.name}</Badge>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </section>
+                                    )}
+
+                                    {forecast?.disclaimer && (
+                                        <p className="text-[11px] text-ink-400 text-center italic max-w-2xl mx-auto">
+                                            {forecast.disclaimer}
+                                        </p>
+                                    )}
+                                </motion.div>
                             )}
                         </div>
                     )}
@@ -1594,11 +1932,12 @@ export default function Page() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-ink-900/40 dark:bg-black/60 backdrop-blur-md flex items-center justify-center p-6">
               <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-cream-50 dark:bg-zinc-900 w-full max-w-3xl p-16 border border-ink-900/10 dark:border-white/10 rounded-[2rem] relative shadow-2xl paper-texture"><button onClick={() => setShowProfileModal(false)} className="absolute top-8 right-8 text-ink-400 hover:text-ink-900 dark:hover:text-white transition-colors bg-white dark:bg-zinc-800 p-2 border border-ink-900/10 dark:border-white/10 rounded-full shadow-sm"><X className="w-6 h-6" /></button>
                 <div className="mb-14 text-center border-b border-ink-900/10 dark:border-white/10 pb-8"><h3 className="text-3xl font-black text-ink-900 dark:text-white tracking-widest uppercase italic">New Enrollment</h3><p className="text-ink-500 dark:text-ink-400 text-[14px] mt-4 font-medium max-w-lg mx-auto italic">Provide coordinates for temporal archivation.</p></div>
-                <form onSubmit={async (e) => { e.preventDefault(); const submissionData = { ...formData, year: Number(formData.year), month: Number(formData.month), day: Number(formData.day), hour: Number(formData.hour), minute: Number(formData.minute) }; const res = await fetch(`${API_BASE}/users`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(submissionData) }); if (res.ok) { setShowProfileModal(false); fetchUsers(); showToast('Profile created successfully.'); } else { showToast('Failed to create profile.', 'error'); } }} className="space-y-10">
-                  <div className="space-y-3"><label className="text-[10px] font-black text-ink-500 dark:text-ink-400 uppercase tracking-widest px-1">Identity</label><input type="text" placeholder="Subject Name" className="w-full bg-white dark:bg-zinc-800 border border-ink-900/10 dark:border-white/10 p-5 rounded-2xl text-ink-900 dark:text-white text-[15px] font-bold outline-none focus:border-terracotta dark:focus:border-terracotta transition-all shadow-sm placeholder-ink-300 dark:placeholder-zinc-600" required value={formData.name} onChange={e=>setFormData({...formData, name: e.target.value})} /></div>
-                  <div className="grid grid-cols-2 gap-8"><div className="space-y-3"><label className="text-[10px] font-black text-ink-500 dark:text-ink-400 uppercase tracking-widest px-1">Origin (City)</label><input type="text" placeholder="Birth City" className="w-full bg-white dark:bg-zinc-800 border border-ink-900/10 dark:border-white/10 p-5 rounded-2xl text-ink-900 dark:text-white text-[15px] font-bold outline-none focus:border-terracotta dark:focus:border-terracotta transition-all shadow-sm placeholder-ink-300 dark:placeholder-zinc-600" required value={formData.city} onChange={e=>setFormData({...formData, city: e.target.value})} /></div><div className="space-y-3"><label className="text-[10px] font-black text-ink-500 dark:text-ink-400 uppercase tracking-widest px-1">Region Code</label><input type="text" placeholder="IN" className="w-full bg-white dark:bg-zinc-800 border border-ink-900/10 dark:border-white/10 p-5 rounded-2xl text-ink-900 dark:text-white text-[15px] font-bold outline-none focus:border-terracotta dark:focus:border-terracotta transition-all shadow-sm placeholder-ink-300 dark:placeholder-zinc-600" required value={formData.nation} onChange={e=>setFormData({...formData, nation: e.target.value})} /></div></div>
-                  <div className="grid grid-cols-5 gap-4">{[{ l: 'DD', k: 'day' }, { l: 'MM', k: 'month' }, { l: 'YYYY', k: 'year' }, { l: 'HH', k: 'hour' }, { l: 'Min', k: 'minute' }].map(f => (<div key={f.k} className="space-y-3 col-span-1"><label className="text-[9px] font-black text-ink-500 dark:text-ink-400 uppercase tracking-widest text-center block">{f.l}</label><input type="number" placeholder={f.l} className="w-full bg-white dark:bg-zinc-800 border border-ink-900/10 dark:border-white/10 p-5 rounded-2xl text-ink-900 dark:text-white text-center text-[15px] font-black outline-none focus:border-terracotta dark:focus:border-terracotta transition-all shadow-sm" required value={isNaN((formData as any)[f.k]) ? "" : (formData as any)[f.k]} onChange={e=>setFormData({...formData, [f.k]: e.target.value === "" ? NaN : parseInt(e.target.value)})} /></div>))}</div>
-                  <button type="submit" className="w-full mt-4 py-6 bg-ink-900 dark:bg-terracotta text-white rounded-2xl font-black uppercase tracking-[0.3em] text-[12px] hover:bg-terracotta dark:hover:bg-terracotta/80 transition-all shadow-xl active:scale-[0.98]">Compile Matrix</button>
+                <form onSubmit={async (e) => { e.preventDefault(); setCreatingProfile(true); const submissionData = { ...formData, year: Number(formData.year), month: Number(formData.month), day: Number(formData.day), hour: Number(formData.hour), minute: Number(formData.minute) }; try { const res = await fetch(`${API_BASE}/users`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(submissionData) }); if (res.ok) { const data = await res.json(); setShowProfileModal(false); await fetchUsers(); if (data.user_id) { await fetchProfile(data.user_id); setActiveView('reading'); setMessages([{ role: "bot", content: `Namaste, ${data.name || formData.name}.\n\nYour chart is computed — ${data.lagna} Lagna, Moon in ${data.moon}.\n${data.dasha || ''}\n\nTell me where you are in life (college, work, relationships) and what you want to know. I learn from every conversation.` }]); } showToast(data.message || 'Profile created — chart computed.'); } else { const err = await res.json().catch(() => ({})); showToast(err.detail || 'Failed to create profile.', 'error'); } } catch (_) { showToast('Backend unreachable. Start server on port 8001.', 'error'); } setCreatingProfile(false); }} className="space-y-10">
+                  <div className="space-y-3"><label className="text-[10px] font-black text-ink-500 dark:text-ink-400 uppercase tracking-widest px-1">Full Name</label><input type="text" placeholder="Your name" className="w-full bg-white dark:bg-zinc-800 border border-ink-900/10 dark:border-white/10 p-5 rounded-2xl text-ink-900 dark:text-white text-[15px] font-bold outline-none focus:border-terracotta dark:focus:border-terracotta transition-all shadow-sm placeholder-ink-300 dark:placeholder-zinc-600" required value={formData.name} onChange={e=>setFormData({...formData, name: e.target.value})} /></div>
+                  <div className="grid grid-cols-2 gap-8"><div className="space-y-3"><label className="text-[10px] font-black text-ink-500 dark:text-ink-400 uppercase tracking-widest px-1">Birth City</label><input type="text" placeholder="e.g. Mumbai" className="w-full bg-white dark:bg-zinc-800 border border-ink-900/10 dark:border-white/10 p-5 rounded-2xl text-ink-900 dark:text-white text-[15px] font-bold outline-none focus:border-terracotta dark:focus:border-terracotta transition-all shadow-sm placeholder-ink-300 dark:placeholder-zinc-600" required value={formData.city} onChange={e=>setFormData({...formData, city: e.target.value})} /></div><div className="space-y-3"><label className="text-[10px] font-black text-ink-500 dark:text-ink-400 uppercase tracking-widest px-1">Country Code</label><input type="text" placeholder="IN" className="w-full bg-white dark:bg-zinc-800 border border-ink-900/10 dark:border-white/10 p-5 rounded-2xl text-ink-900 dark:text-white text-[15px] font-bold outline-none focus:border-terracotta dark:focus:border-terracotta transition-all shadow-sm placeholder-ink-300 dark:placeholder-zinc-600" required value={formData.nation} onChange={e=>setFormData({...formData, nation: e.target.value})} /></div></div>
+                  <div className="grid grid-cols-5 gap-4">{[{ l: 'Day', k: 'day' }, { l: 'Month', k: 'month' }, { l: 'Year', k: 'year' }, { l: 'Hour', k: 'hour' }, { l: 'Min', k: 'minute' }].map(f => (<div key={f.k} className="space-y-3 col-span-1"><label className="text-[9px] font-black text-ink-500 dark:text-ink-400 uppercase tracking-widest text-center block">{f.l}</label><input type="number" placeholder={f.l} className="w-full bg-white dark:bg-zinc-800 border border-ink-900/10 dark:border-white/10 p-5 rounded-2xl text-ink-900 dark:text-white text-center text-[15px] font-black outline-none focus:border-terracotta dark:focus:border-terracotta transition-all shadow-sm" required value={isNaN((formData as any)[f.k]) ? "" : (formData as any)[f.k]} onChange={e=>setFormData({...formData, [f.k]: e.target.value === "" ? NaN : parseInt(e.target.value)})} /></div>))}</div>
+                  <p className="text-[11px] text-ink-400 italic text-center">Use 24-hour time. Accurate birth time = accurate dasha & predictions.</p>
+                  <button type="submit" disabled={creatingProfile} className="w-full mt-4 py-6 bg-ink-900 dark:bg-terracotta text-white rounded-2xl font-black uppercase tracking-[0.3em] text-[12px] hover:bg-terracotta dark:hover:bg-terracotta/80 transition-all shadow-xl active:scale-[0.98] disabled:opacity-60">{creatingProfile ? 'Computing Chart...' : 'Create Profile & Compute Chart'}</button>
                 </form>
               </motion.div>
             </motion.div>

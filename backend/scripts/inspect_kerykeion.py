@@ -4,11 +4,11 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-GEONAMES_USER = os.getenv("GEONAMES_USERNAME", "demo_user")
+GEONAMES_USER = os.getenv("GEONAMES_USERNAME") or None
 
 subject = AstrologicalSubject(
-    "Test", 2006, 8, 22,
-    9, 37, "New Delhi", "IN",
+    "Test", 1990, 1, 1,
+    12, 0, "New York", "US",
     geonames_username=GEONAMES_USER,
     zodiac_type='Sidereal',
     sidereal_mode='LAHIRI',

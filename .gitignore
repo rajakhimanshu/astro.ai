@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 venv/
+.venv/
 .env
 
 # Node
@@ -19,13 +20,30 @@ build/
 # Large files / Data
 *.pdf
 *.db
+*.sqlite
 *.sqlite3
+*.bundle
 backend/cache/
 backend/temp/
 backend/study data/
 backend/raw_pdfs/
 backend/knowledge/
 backend/data/
+data/
+cache/
+
+# Personal data — never commit
+private/
+backend/tmp_profile.json
+backend/config/birth_data.local.yaml
+backend/scripts/full_life_verdict.py
+backend/scripts/job_biz_marriage.py
+backend/scripts/retro_education_test.py
+docs/read.txt
+antigravity_master_data_prompt.md
+output.txt
+backend/output.txt
+validation_output.txt
 
 # OS files
 .DS_Store

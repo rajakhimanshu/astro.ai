@@ -101,7 +101,16 @@ def update_config(config: ConfigUpdate):
 def create_profile(info: BirthInfo):
     uid = create_user_profile(info.model_dump())
     set_active_user(uid)
-    return {"status": "success", "user_id": uid}
+    profile = load_user_profile(uid)
+    return {
+        "status": "success",
+        "user_id": uid,
+        "name": profile["meta"]["name"],
+        "lagna": profile["lagna"]["sign"],
+        "moon": profile["planets"]["Moon"]["sign"],
+        "dasha": profile["dasha"].get("summary", ""),
+        "message": "Chart computed. You can start consultation.",
+    }
 
 @app.post("/api/users/active")
 def set_active(payload: dict):
@@ -309,6 +318,63 @@ def get_gochara_bala(user_id: str):
         return {"status": "success", "report": format_gochara_bala_report(profile)}
     except Exception as e:
         raise HTTPException(404, detail=str(e))
+
+
+@app.get("/api/users/{user_id}/timing")
+def get_timing(user_id: str, topic: str = "general", question: str = "", years: int = 3):
+    """Ranked future windows for a topic (dasha × Jupiter/Saturn double transit scan)."""
+    try:
+        profile = load_user_profile(user_id)
+    except Exception as e:
+        raise HTTPException(404, detail=str(e))
+    from core.timing_engine import scan_timing_windows, format_timing_windows
+    result = scan_timing_windows(profile, topic=topic, question=question, years=max(1, min(10, years)))
+    return {"status": "success", "report": format_timing_windows(result), "data": result}
+
+
+@app.get("/api/users/{user_id}/forecast")
+def get_user_forecast(user_id: str, horizon: str = "all"):
+    """
+    Structured Jyotish forecasts for product horizons:
+      life | today | 30d | 1y | 5y | all
+
+    Built from Vimshottari, gochara bala, kakshya, muhurta, Ashtakavarga,
+    yogas, and convergence — not free-form LLM invention.
+    """
+    try:
+        from core.forecast_engine import generate_horizon_forecast, format_horizon_forecast
+        data = generate_horizon_forecast(user_id, horizon=horizon)
+        if data.get("status") == "error":
+            raise HTTPException(404, detail=data.get("error", "Forecast failed"))
+        reports = {}
+        for key, block in (data.get("horizons") or {}).items():
+            reports[key] = format_horizon_forecast(block)
+        return {"status": "success", "data": data, "reports": reports}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+@app.get("/api/users/{user_id}/consultation/brief")
+def get_consultation_brief(user_id: str, question: str = ""):
+    """Engine-first brief for a question — same data injected into chat."""
+    try:
+        from core.consultation_engine import build_consultation_brief
+        profile = load_user_profile(user_id)
+        q = question.strip() or "general life reading"
+        brief = build_consultation_brief(profile, q, user_id=user_id)
+        return {"status": "success", "data": brief}
+    except Exception as e:
+        raise HTTPException(404, detail=str(e))
+
+
+@app.get("/api/users/{user_id}/conversations")
+def get_conversations(user_id: str, limit: int = 10):
+    try:
+        from core.conversation_memory import get_recent_conversations
+        return {"status": "success", "conversations": get_recent_conversations(user_id, limit=limit)}
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
 
 # ── Chat Endpoint ─────────────────────────────────────────────────────────────
 

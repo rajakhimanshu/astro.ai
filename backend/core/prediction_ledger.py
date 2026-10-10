@@ -99,6 +99,26 @@ def log_prediction(
     if not force and conv.get("confidence", 0) < 25 and gochara.get("major_count", 0) == 0:
         return None
 
+    # Dedup: skip if same topic logged within 24h with identical convergence score
+    conn = _get_conn(user_id)
+    recent = conn.execute(
+        """SELECT id, topic, confidence, prediction_text, created_at FROM predictions
+           WHERE topic=? AND status='pending'
+           ORDER BY created_at DESC LIMIT 1""",
+        (topic,),
+    ).fetchone()
+    if recent and not force:
+        rid, rtopic, rconf, rtext, rcreated = recent
+        try:
+            created_dt = datetime.fromisoformat(rcreated.replace("Z", ""))
+            if (datetime.now() - created_dt).total_seconds() < 86400:
+                if rconf == conv.get("confidence", 0) and rtext[:80] == _build_prediction_text(topic, conv, gochara)[:80]:
+                    conn.close()
+                    return None
+        except Exception:
+            pass
+    conn.close()
+
     w_start, w_end = _estimate_window(
         conv.get("confidence", 0),
         conv.get("can_narrow_window", False),
@@ -207,15 +227,20 @@ def get_all_predictions(user_id: str) -> list:
            FROM predictions ORDER BY created_at DESC LIMIT 100"""
     ).fetchall()
     conn.close()
-    return [
-        {
+    seen = set()
+    out = []
+    for r in rows:
+        dedup_key = (r[1], r[2][:100], r[3], r[4])
+        if dedup_key in seen:
+            continue
+        seen.add(dedup_key)
+        out.append({
             "id": r[0], "topic": r[1], "prediction_text": r[2],
             "window_start": r[3], "window_end": r[4], "confidence": r[5],
             "status": r[6], "outcome": r[7], "outcome_date": r[8],
             "created_at": r[9], "verified_at": r[10],
-        }
-        for r in rows
-    ]
+        })
+    return out
 
 
 def format_pending_for_agent(user_id: str) -> str:

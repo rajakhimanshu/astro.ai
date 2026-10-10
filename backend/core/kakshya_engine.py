@@ -34,7 +34,7 @@ def analyze_transit_kakshyas(profile: dict, target_dt=None) -> dict:
             birth["year"], birth["month"], birth["day"],
             birth["hour"], birth["minute"],
             birth["city"], birth["nation"],
-            geonames_username=os.getenv("GEONAMES_USERNAME", "demo_user"),
+            geonames_username=os.getenv("GEONAMES_USERNAME") or None,
             zodiac_type="Sidereal", sidereal_mode="LAHIRI", houses_system_identifier="W",
         )
         av = calculate_ashtakavarga(subject)

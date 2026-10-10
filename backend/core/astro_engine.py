@@ -707,7 +707,31 @@ from kerykeion import AstrologicalSubject
 
 # Load environment variables
 load_dotenv()
-GEONAMES_USER = os.getenv("GEONAMES_USERNAME", "demo_user")
+GEONAMES_USER = os.getenv("GEONAMES_USERNAME") or None
+
+# Reference point for "current sky" charts that are not tied to a person (IST meridian).
+REFERENCE_LAT, REFERENCE_LNG, REFERENCE_TZ = 28.6139, 77.2090, "Asia/Kolkata"
+
+_SWE_BODY_NAMES = {
+    "Sun": "SUN", "Moon": "MOON", "Mercury": "MERCURY", "Venus": "VENUS",
+    "Mars": "MARS", "Jupiter": "JUPITER", "Saturn": "SATURN",
+    "Rahu": "TRUE_NODE", "Ketu": "TRUE_NODE",
+}
+
+
+def get_sidereal_longitude(dt, planet: str) -> float:
+    """Lahiri sidereal longitude (0-360) of a planet at a UT datetime, computed offline."""
+    import swisseph as swe
+    swe.set_sid_mode(swe.SIDM_LAHIRI)
+    body = getattr(swe, _SWE_BODY_NAMES[planet])
+    lon = swe.calc_ut(datetime_to_jd(dt), body, swe.FLG_SIDEREAL)[0][0]
+    if planet == "Ketu":
+        lon += 180.0
+    return lon % 360.0
+
+
+def get_sidereal_sign_idx(dt, planet: str) -> int:
+    return int(get_sidereal_longitude(dt, planet) // 30) % 12
 
 
 def load_birth_data():
@@ -722,7 +746,15 @@ def load_birth_data():
         data['minute'] = int(data['minute'])
         return data
 
-def get_sky_on_date(year, month, day, hour=12, minute=0, city='New Delhi', nation='IN', name='Sky'):
+def get_sky_on_date(year, month, day, hour=12, minute=0, city=None, nation='IN', name='Sky'):
+    if not city:
+        return AstrologicalSubject(
+            name, int(year), int(month), int(day), int(hour), int(minute),
+            lng=REFERENCE_LNG, lat=REFERENCE_LAT, tz_str=REFERENCE_TZ, online=False,
+            zodiac_type='Sidereal',
+            sidereal_mode='LAHIRI',
+            houses_system_identifier='W'
+        )
     subject = AstrologicalSubject(
         name, int(year), int(month), int(day),
         int(hour), int(minute), city, nation,
@@ -754,8 +786,8 @@ def get_natal_chart():
 def get_current_sky():
     now = datetime.now()
     return get_sky_on_date(
-        now.year, now.month, now.day, 
-        now.hour, now.minute, 'New Delhi', 'IN', 'CurrentSky'
+        now.year, now.month, now.day,
+        now.hour, now.minute, name='CurrentSky'
     )
 
 def get_house_from_asc(planet_abs_pos, asc_abs_pos):
